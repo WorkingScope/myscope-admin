@@ -86,7 +86,7 @@ export default function RecentActivity() {
       else setLoading(true);
       setError(null);
 
-      const response = await adminAPI.getLogs({ limit: 15 });
+      const response = await adminAPI.getLogs({ limit: 8 });
       setLogs(response.data.logs || []);
     } catch (err: any) {
       console.error('Error fetching activity logs:', err);
@@ -116,8 +116,8 @@ export default function RecentActivity() {
 
   if (loading && !isRefreshing) {
     return (
-      <div className="bg-card border border-border rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-lg bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
+        <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
         </div>
         <div className="space-y-4">
@@ -136,8 +136,8 @@ export default function RecentActivity() {
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="rounded-lg bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
+      <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
         <button
           type="button"
@@ -181,11 +181,11 @@ export default function RecentActivity() {
             return (
               <div
                 key={log.id}
-                className="flex gap-3 p-3 rounded-md border border-transparent hover:border-border hover:bg-accent/50 transition-colors"
+                className="flex gap-2.5 p-2 rounded-md border border-transparent hover:border-border hover:bg-accent/50 transition-colors"
               >
                 {/* Action icon */}
                 <div className="shrink-0">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tone.bg}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${tone.bg}`}>
                     <ActionIcon className={`w-5 h-5 ${tone.text}`} />
                   </div>
                 </div>
@@ -236,7 +236,7 @@ export default function RecentActivity() {
 
                 {/* Status icon */}
                 <div className="shrink-0">
-                  <StatusIcon className={`w-5 h-5 ${tone.text}`} />
+                  <StatusIcon className={`w-4 h-4 ${tone.text}`} />
                 </div>
               </div>
             );

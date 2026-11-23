@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { canAccessRoute } from "@/lib/rbac"
 import { usePendingCounts } from "@/hooks/usePendingCounts"
+import { useTheme } from "@/components/theme-provider"
 import {
   LayoutDashboard,
   Users,
@@ -77,6 +78,13 @@ export function AdminLayout({ children, user }: AdminLayoutProps) {
   const pathname = usePathname()
   const { logout } = useAuth()
   const pending = usePendingCounts(!!user)
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => setMounted(true), [])
+  const wordmarkSrc =
+    mounted && resolvedTheme === "dark"
+      ? "/images/navbar_logo_dark.png"
+      : "/images/navbar_logo_light.png"
 
   // Filter navigation items based on user's role
   const navItems = React.useMemo(() => {
@@ -143,11 +151,12 @@ export function AdminLayout({ children, user }: AdminLayoutProps) {
           ) : (
             <Link href="/dashboard" className="flex items-center">
               <Image
-                src="/images/navbar_logo.png"
+                src={wordmarkSrc}
                 alt="MyScope"
                 width={220}
                 height={64}
                 className="h-16 w-auto object-contain"
+                style={{ width: "auto" }}
                 priority
               />
             </Link>

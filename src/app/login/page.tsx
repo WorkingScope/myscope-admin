@@ -9,6 +9,7 @@ import { adminAPI } from "@/lib/apiEndpoints"
 import { canAccessRoute } from "@/lib/rbac"
 import Image from "next/image"
 import { AlertCircle, Loader } from "lucide-react"
+import { useTheme } from "@/components/theme-provider"
 
 const safeRedirectFor = (role: string): string => {
   const saved = localStorage.getItem('redirectAfterLogin')
@@ -33,6 +34,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const { login, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const wordmarkSrc =
+    mounted && resolvedTheme === "dark"
+      ? "/images/navbar_logo_dark.png"
+      : "/images/navbar_logo_light.png"
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -75,16 +83,14 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="mb-8 flex flex-col items-center gap-2">
           <Image
-            src="/images/logo.png"
+            src={wordmarkSrc}
             alt="MyScope"
-            width={160}
-            height={48}
-            className="h-12 w-auto"
+            width={275}
+            height={80}
+            className="h-20 w-auto"
+            style={{ width: "auto" }}
             priority
           />
-          <h1 className="text-2xl font-bold tracking-tight text-violet-900 dark:text-violet-200">
-            MyScope Admin
-          </h1>
           <p className="text-sm text-muted-foreground">Sign in to access the admin panel</p>
         </div>
 
