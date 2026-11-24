@@ -49,6 +49,14 @@ const TABS: { key: Tab; label: string }[] = [
 
 const lkr = (n: any) => `LKR ${Number(n || 0).toLocaleString()}`
 
+// Fee overrides are stored as a fraction with 4 decimal places (e.g. 0.034
+// for 3.4%), but naive `percent / 100` / `fraction * 100` round-trips hit
+// JS float artifacts (3.4 / 100 * 100 -> 3.4000000000000004). Round through
+// toFixed at each conversion so the input box and toasts always show the
+// clean value the admin actually typed.
+const pctToFraction = (percent: number) => Number((percent / 100).toFixed(4))
+const fractionToPctDisplay = (fraction: number) => String(parseFloat((fraction * 100).toFixed(2)))
+
 const formatWhen = (iso?: string | null) => {
   if (!iso) return ""
   const d = new Date(iso)
@@ -138,7 +146,7 @@ export default function ManageEventPage() {
   const [savingFeePct, setSavingFeePct] = useState(false)
   useEffect(() => {
     setFeePctInput(
-      event?.convenience_fee_pct != null ? String(Number(event.convenience_fee_pct) * 100) : "",
+      event?.convenience_fee_pct != null ? fractionToPctDisplay(Number(event.convenience_fee_pct)) : "",
     )
   }, [event?.convenience_fee_pct])
 
@@ -153,12 +161,12 @@ export default function ManageEventPage() {
         toast.error("Enter a percentage between 0 and 100, or leave blank for the platform default.")
         return
       }
-      pct = n / 100
+      pct = pctToFraction(n)
     }
     setSavingFeePct(true)
     try {
       await adminEventManage.setConvenienceFeePct(id, pct)
-      toast.success(pct === null ? "Back to platform default fee." : `Fee set to ${pct * 100}%.`)
+      toast.success(pct === null ? "Back to platform default fee." : `Fee set to ${fractionToPctDisplay(pct)}%.`)
       loadEvent()
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "Failed.")
@@ -175,7 +183,7 @@ export default function ManageEventPage() {
   const [savingPlatformFeePct, setSavingPlatformFeePct] = useState(false)
   useEffect(() => {
     setPlatformFeePctInput(
-      event?.platform_fee_pct != null ? String(Number(event.platform_fee_pct) * 100) : "",
+      event?.platform_fee_pct != null ? fractionToPctDisplay(Number(event.platform_fee_pct)) : "",
     )
   }, [event?.platform_fee_pct])
 
@@ -190,12 +198,12 @@ export default function ManageEventPage() {
         toast.error("Enter a percentage between 0 and 100, or leave blank for the platform default.")
         return
       }
-      pct = n / 100
+      pct = pctToFraction(n)
     }
     setSavingPlatformFeePct(true)
     try {
       await adminEventManage.setPlatformFeePct(id, pct)
-      toast.success(pct === null ? "Back to platform default fee." : `Platform fee set to ${pct * 100}%.`)
+      toast.success(pct === null ? "Back to platform default fee." : `Platform fee set to ${fractionToPctDisplay(pct)}%.`)
       loadEvent()
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "Failed.")
