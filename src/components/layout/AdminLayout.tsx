@@ -80,10 +80,13 @@ export function AdminLayout({ children, user }: AdminLayoutProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
+  // Pre-cropped variants trim the baked-in padding around the wordmark so
+  // it reads large within the bar's fixed height (the source files have a
+  // lot of empty canvas around the actual glyphs).
   const wordmarkSrc =
     mounted && resolvedTheme === "dark"
-      ? "/images/navbar_logo_dark.png"
-      : "/images/navbar_logo_light.png"
+      ? "/images/navbar_logo_dark_cropped.png"
+      : "/images/navbar_logo_light_cropped.png"
 
   // Filter navigation items based on user's role
   const navItems = React.useMemo(() => {
@@ -133,7 +136,7 @@ export function AdminLayout({ children, user }: AdminLayoutProps) {
               alt="MyScope"
               width={200}
               height={48}
-              className="h-11 w-auto object-contain"
+              className="h-9 w-auto object-contain"
               style={{ width: "auto" }}
               priority
             />
