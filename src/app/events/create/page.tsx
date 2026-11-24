@@ -33,6 +33,7 @@ import {
   AlertCircle,
   Armchair,
   ArrowLeft,
+  CalendarPlus,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -294,14 +295,19 @@ export default function AdminCreateEventForOrganizerPage() {
           </button>
 
           {/* Header */}
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Create event for organizer
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Set up an event on behalf of an approved organizer. It&rsquo;s pre-approved when you
-              create it — it lands in the organizer&rsquo;s dashboard ready to publish.
-            </p>
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <CalendarPlus className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                Create event for organizer
+              </h1>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Set up an event on behalf of an approved organizer. It&rsquo;s pre-approved when you
+                create it — it lands in the organizer&rsquo;s dashboard ready to publish.
+              </p>
+            </div>
           </div>
 
           {/* Stepper */}
@@ -316,7 +322,7 @@ export default function AdminCreateEventForOrganizerPage() {
           )}
 
           {/* Step card */}
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-xs sm:p-8">
+          <div className="rounded-2xl bg-card p-6 shadow-sm dark:ring-1 dark:ring-white/10 sm:p-8">
             {/* --- Step 1: Organizer --- */}
             {step === 0 && (
               <div className="space-y-5">
@@ -381,10 +387,10 @@ export default function AdminCreateEventForOrganizerPage() {
                         <label
                           key={mode}
                           className={cn(
-                            "group flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-within:ring-2 focus-within:ring-ring/50",
+                            "group flex cursor-pointer items-start gap-3 rounded-xl p-4 text-left transition-colors focus-within:ring-2 focus-within:ring-ring/50",
                             selected
-                              ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                              : "border-border bg-card hover:border-primary/40 hover:bg-muted/40",
+                              ? "bg-primary/10 ring-2 ring-primary/40"
+                              : "bg-muted/50 hover:bg-muted",
                           )}
                         >
                           <input
@@ -559,7 +565,7 @@ export default function AdminCreateEventForOrganizerPage() {
 
                 <div className="space-y-3">
                   {tickets.map((t, idx) => (
-                    <div key={t.id} className="rounded-xl border border-border bg-background/40 p-4">
+                    <div key={t.id} className="rounded-xl bg-muted/40 p-4">
                       <div className="mb-3 flex items-center justify-between">
                         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           {tierLabel} #{idx + 1}
@@ -834,7 +840,7 @@ function FieldLabel({
 
 function ReviewBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-background/40 p-4">
+    <div className="rounded-xl bg-muted/40 p-4">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {title}
       </h3>
@@ -975,7 +981,7 @@ function OrganizerPicker({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between gap-3 rounded-lg border border-input bg-background px-3 py-2.5 text-left transition-colors hover:border-primary/40"
+        className="flex w-full items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2.5 text-left transition-colors hover:bg-muted/70"
       >
         {selected ? (
           <div className="flex min-w-0 items-center gap-3">

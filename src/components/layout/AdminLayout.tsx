@@ -18,7 +18,6 @@ import {
   Settings,
   Menu,
   X,
-  LogOut,
   ChevronLeft,
   Building2,
   Banknote,
@@ -119,68 +118,124 @@ export function AdminLayout({ children, user }: AdminLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Unified top bar — a brand panel sized to match the sidebar's own
+          width (so the logo block lines up with the sidebar column below
+          it), plus the rest of the bar for page title and account controls. */}
+      <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center border-b border-border bg-card">
+        <div
+          className={`flex h-full shrink-0 items-center justify-center transition-all duration-300 w-20 ${
+            sidebarCollapsed ? "lg:w-16" : "lg:w-64"
+          }`}
+        >
+          <Link href="/dashboard" className="flex items-center">
+            <Image
+              src={wordmarkSrc}
+              alt="MyScope"
+              width={200}
+              height={48}
+              className="h-11 w-auto object-contain"
+              style={{ width: "auto" }}
+              priority
+            />
+          </Link>
+        </div>
+
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 border-l border-border px-4 lg:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden h-9 w-9 shrink-0 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-muted transition-colors"
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <ChevronLeft className={`h-5 w-5 transition-transform ${sidebarCollapsed ? "rotate-180" : ""}`} />
+            </button>
+
+            <div className="hidden min-w-0 sm:block">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Admin Panel
+              </p>
+              <h1 className="-mt-0.5 truncate text-sm font-semibold text-foreground">
+                {navItems.find((n) => n.href === activeHref)?.name ?? "Dashboard"}
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <ThemeToggle />
+
+            {user && (
+              <div className="hidden sm:flex items-center gap-2.5 rounded-full border border-border bg-background pl-3 pr-1 py-1">
+                <div className="text-right leading-tight">
+                  <p className="text-xs font-semibold text-foreground">{user.name}</p>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{user.role}</p>
+                </div>
+                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-primary/10 ring-1 ring-primary/20">
+                  {user.profileImage ? (
+                    <Image
+                      src={user.profileImage}
+                      alt={user.name}
+                      width={32}
+                      height={32}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-primary font-semibold text-sm">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center px-3 py-2 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition"
+              title="Logout"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 top-16 z-30 bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — starts below the unified top bar */}
       <aside
-        className={`fixed left-0 top-0 z-50 h-full bg-card border-r border-border transition-all duration-300 ${
+        className={`fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] bg-card border-r border-border transition-all duration-300 ${
           sidebarCollapsed ? "w-16" : "w-64"
         } ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0`}
       >
-        {/* Sidebar Header */}
-        <div className="flex h-20 items-center justify-between border-b border-border px-3">
-          {sidebarCollapsed ? (
-            <Link href="/dashboard" className="mx-auto flex items-center">
-              <Image
-                src="/images/logo.png"
-                alt="MyScope"
-                width={48}
-                height={48}
-                className="h-12 w-12 object-contain"
-                priority
-              />
-            </Link>
-          ) : (
-            <Link href="/dashboard" className="flex items-center">
-              <Image
-                src={wordmarkSrc}
-                alt="MyScope"
-                width={220}
-                height={64}
-                className="h-16 w-auto object-contain"
-                style={{ width: "auto" }}
-                priority
-              />
-            </Link>
-          )}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors"
-            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <ChevronLeft className={`h-5 w-5 transition-transform ${sidebarCollapsed ? "rotate-180" : ""}`} />
-          </button>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
-            aria-label="Close sidebar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden absolute right-3 top-3 h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+          aria-label="Close sidebar"
+        >
+          <X className="h-5 w-5" />
+        </button>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto h-[calc(100vh-4rem)]">
+        {/* Navigation Links — compact spacing so every item fits without a
+            scrollbar on typical viewport heights; overflow-y-auto stays as a
+            safety net for very short windows. */}
+        <nav className="h-full space-y-0.5 overflow-y-auto p-3">
           {!sidebarCollapsed && (
-            <div className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="px-3 pb-1.5 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Manage
             </div>
           )}
@@ -208,7 +263,7 @@ export function AdminLayout({ children, user }: AdminLayoutProps) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`group relative flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -217,7 +272,7 @@ export function AdminLayout({ children, user }: AdminLayoutProps) {
               >
                 {/* Icon with badge dot when collapsed */}
                 <span className="relative flex-shrink-0">
-                  <Icon className={`h-[18px] w-[18px] ${isActive ? "text-primary" : ""}`} />
+                  <Icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
                   {badge > 0 && sidebarCollapsed && (
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
                       {badge > 9 ? '9+' : badge}
@@ -246,69 +301,10 @@ export function AdminLayout({ children, user }: AdminLayoutProps) {
 
       {/* Main Content */}
       <div
-        className={`transition-all duration-300 ${
+        className={`pt-16 transition-all duration-300 ${
           sidebarCollapsed ? "lg:pl-16" : "lg:pl-64"
         }`}
       >
-        {/* Top Navigation Bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60 px-4 lg:px-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
-              aria-label="Open menu"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <div className="hidden sm:block">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Admin Panel
-              </p>
-              <h1 className="text-base font-semibold text-foreground -mt-0.5">
-                {navItems.find((n) => n.href === activeHref)?.name ?? "Dashboard"}
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-
-            {user && (
-              <div className="hidden sm:flex items-center gap-2.5 rounded-full border border-border bg-card pl-3 pr-1 py-1">
-                <div className="text-right leading-tight">
-                  <p className="text-xs font-semibold text-foreground">{user.name}</p>
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{user.role}</p>
-                </div>
-                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-primary/10 ring-1 ring-primary/20">
-                  {user.profileImage ? (
-                    <Image
-                      src={user.profileImage}
-                      alt={user.name}
-                      width={32}
-                      height={32}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-primary font-semibold text-sm">
-                      {user.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-              title="Logout"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Page Content */}
         <main className="p-4 lg:p-6">
           {children}
         </main>

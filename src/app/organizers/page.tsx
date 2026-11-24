@@ -8,6 +8,17 @@ import { PageLoader } from "@/components/ui/loading"
 import { ErrorMessage, EmptyState } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   AlertTriangle,
   Building2,
@@ -20,7 +31,6 @@ import {
   Landmark,
   IdCard,
   Loader,
-  Percent,
   Search,
   ShieldOff,
   Trash2,
@@ -52,9 +62,6 @@ interface OrganizerProfile {
   rejection_reason: string | null
   verified_at: string | null
   created_at: string
-  // Admin-controlled override for the PAYOUT platform-fee percentage this
-  // organizer is charged (fraction, e.g. 0.03 = 3%). null = platform default.
-  platform_fee_pct: number | null
   users?: {
     id: string
     name: string
@@ -94,6 +101,7 @@ export default function OrganizersPage() {
   const [revokingFor, setRevokingFor] = useState<OrganizerProfile | null>(null)
   const [deletingFor, setDeletingFor] = useState<OrganizerProfile | null>(null)
   const [clearingBankFor, setClearingBankFor] = useState<OrganizerProfile | null>(null)
+  const [approvingFor, setApprovingFor] = useState<OrganizerProfile | null>(null)
   // Revoke-only state — the blockers list comes from a preflight call when the
   // modal opens so the admin can see what's in flight before deciding to force.
   const [revokeBlockers, setRevokeBlockers] = useState<Blocker[] | null>(null)
@@ -117,20 +125,19 @@ export default function OrganizersPage() {
     fetchProfiles(tab)
   }, [tab])
 
-  const handleApprove = async (profile: OrganizerProfile) => {
-    if (!confirm(`Approve "${profile.business_name}"? This promotes the user to organizer role.`)) {
-      return
-    }
-    setPendingActionId(profile.id)
+  const confirmApprove = async () => {
+    if (!approvingFor) return
+    setPendingActionId(approvingFor.id)
     try {
-      await adminAPI.approveOrganizer(profile.id)
+      await adminAPI.approveOrganizer(approvingFor.id)
       toast.success("Organizer approved")
       // Remove from current tab (would no longer match the filter)
-      setProfiles((prev) => prev.filter((p) => p.id !== profile.id))
+      setProfiles((prev) => prev.filter((p) => p.id !== approvingFor.id))
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to approve")
     } finally {
       setPendingActionId(null)
+      setApprovingFor(null)
     }
   }
 
@@ -255,48 +262,56 @@ export default function OrganizersPage() {
       <AdminLayout user={user || undefined}>
         <div className="space-y-6">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <Building2 className="h-8 w-8 text-primary" />
-              Organizer Applications
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Review business details, then approve or reject applications.
-            </p>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-border">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  tab === t.key
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-            <div className="ml-auto text-xs text-muted-foreground py-2">
-              {!loading && `${counts.shown} shown`}
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Building2 className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                Organizer Applications
+              </h1>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Review business details, then approve or reject applications.
+              </p>
             </div>
           </div>
 
-          {/* Search — narrows the current tab. Matches business name, NIC/BR,
-              business type, and the underlying user's name + email. */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by business name, NIC, email…"
-              className="h-9 w-full rounded-md border border-input bg-card pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
-              disabled={loading || !!error}
-            />
+          {/* Tabs + search — one toolbar panel, same pattern as the
+              organizer dashboard's events toolbar. */}
+          <div className="rounded-2xl bg-card p-3 shadow-sm dark:ring-1 dark:ring-white/10">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="inline-flex shrink-0 rounded-lg bg-muted p-1">
+                {TABS.map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setTab(t.key)}
+                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      tab === t.key
+                        ? "bg-card text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              {/* Search — narrows the current tab. Matches business name,
+                  NIC/BR, business type, and the underlying user's name + email. */}
+              <div className="relative sm:w-72">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by business name, NIC, email…"
+                  className="h-9 w-full rounded-lg bg-muted pl-9 pr-3 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  disabled={loading || !!error}
+                />
+              </div>
+            </div>
+            <div className="mt-2 text-right text-xs text-muted-foreground">
+              {!loading && `${counts.shown} shown`}
+            </div>
           </div>
 
           {/* Content */}
@@ -321,126 +336,135 @@ export default function OrganizersPage() {
               }
             />
           ) : (
-            <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/50 border-b border-border">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Organizer
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Applied
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredProfiles.map((p) => {
-                      const u = p.users
-                      const busy = pendingActionId === p.id
-                      return (
-                        <tr key={p.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-3">
-                              {p.profile_image_url || u?.profile_image ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={(p.profile_image_url || u?.profile_image) as string}
-                                  alt={p.business_name}
-                                  className="h-10 w-10 shrink-0 rounded-full object-cover border border-border bg-muted"
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-                                />
-                              ) : (
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-primary to-secondary text-primary-foreground font-semibold text-sm">
-                                  {(u?.name || p.business_name).charAt(0).toUpperCase()}
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <div className="text-sm font-medium text-foreground truncate">
-                                  {p.business_name}
-                                </div>
-                                <div className="flex items-center gap-1 truncate text-sm text-muted-foreground">
-                                  <Mail className="h-3 w-3 shrink-0" />
-                                  <span className="truncate">{u?.email || "—"}</span>
-                                </div>
+            <div className="rounded-2xl bg-card shadow-sm dark:ring-1 dark:ring-white/10">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Organizer</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Applied</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProfiles.map((p) => {
+                    const u = p.users
+                    const busy = pendingActionId === p.id
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            {p.profile_image_url || u?.profile_image ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={(p.profile_image_url || u?.profile_image) as string}
+                                alt={p.business_name}
+                                className="h-9 w-9 shrink-0 rounded-full bg-muted object-cover"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                              />
+                            ) : (
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-primary to-secondary text-sm font-semibold text-primary-foreground">
+                                {(u?.name || p.business_name).charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium text-foreground">
+                                {p.business_name}
+                              </div>
+                              <div className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                                <Mail className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{u?.email || "—"}</span>
                               </div>
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground capitalize">
-                            {p.business_type || "—"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <StatusBadge status={p.verification_status} />
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                            {new Date(p.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => setViewingFor(p)}
-                                className="p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition"
-                                title="View details"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                              {tab === "pending" && (
-                                <>
-                                  <button
-                                    onClick={() => handleApprove(p)}
-                                    disabled={busy}
-                                    className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition disabled:opacity-50"
-                                    title="Approve"
-                                  >
-                                    {busy ? <Loader className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                                  </button>
-                                  <button
-                                    onClick={() => setRejectingFor(p)}
-                                    disabled={busy}
-                                    className="p-2 text-destructive hover:bg-destructive/10 rounded-md transition disabled:opacity-50"
-                                    title="Reject"
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                  </button>
-                                </>
-                              )}
-                              {tab === "approved" && (
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm capitalize text-muted-foreground">
+                          {p.business_type || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={p.verification_status} />
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(p.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => setViewingFor(p)}
+                              className="rounded-md p-2 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+                              title="View details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            {tab === "pending" && (
+                              <>
                                 <button
-                                  onClick={() => handleOpenRevoke(p)}
+                                  onClick={() => setApprovingFor(p)}
                                   disabled={busy}
-                                  className="p-2 text-destructive hover:bg-destructive/10 rounded-md transition disabled:opacity-50"
-                                  title="Revoke organizer status"
+                                  className="rounded-md p-2 text-emerald-600 transition hover:bg-emerald-500/10 disabled:opacity-50 dark:text-emerald-400"
+                                  title="Approve"
                                 >
-                                  {busy ? <Loader className="h-4 w-4 animate-spin" /> : <ShieldOff className="h-4 w-4" />}
+                                  {busy ? <Loader className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                                 </button>
-                              )}
+                                <button
+                                  onClick={() => setRejectingFor(p)}
+                                  disabled={busy}
+                                  className="rounded-md p-2 text-destructive transition hover:bg-destructive/10 disabled:opacity-50"
+                                  title="Reject"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                            {tab === "approved" && (
                               <button
-                                onClick={() => setDeletingFor(p)}
+                                onClick={() => handleOpenRevoke(p)}
                                 disabled={busy}
-                                className="p-2 text-destructive hover:bg-destructive/10 rounded-md transition disabled:opacity-50"
-                                title="Delete organizer"
+                                className="rounded-md p-2 text-destructive transition hover:bg-destructive/10 disabled:opacity-50"
+                                title="Revoke organizer status"
                               >
-                                {busy ? <Loader className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                {busy ? <Loader className="h-4 w-4 animate-spin" /> : <ShieldOff className="h-4 w-4" />}
                               </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            )}
+                            <button
+                              onClick={() => setDeletingFor(p)}
+                              disabled={busy}
+                              className="rounded-md p-2 text-destructive transition hover:bg-destructive/10 disabled:opacity-50"
+                              title="Delete organizer"
+                            >
+                              {busy ? <Loader className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
+
+          <AlertDialog open={approvingFor !== null} onOpenChange={(open) => { if (!open) setApprovingFor(null) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Approve this organizer?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {approvingFor && (
+                    <>
+                      This promotes <span className="font-medium text-foreground">{approvingFor.business_name}</span>&rsquo;s account to the organizer role.
+                    </>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setApprovingFor(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction disabled={pendingActionId !== null} onClick={(e) => { e.preventDefault(); confirmApprove() }}>
+                  <CheckCircle2 className="h-4 w-4" /> Approve
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {viewingFor && (
             <OrganizerDetailsModal
@@ -448,10 +472,6 @@ export default function OrganizersPage() {
               busy={pendingActionId === viewingFor.id}
               onClose={() => setViewingFor(null)}
               onClearBank={() => setClearingBankFor(viewingFor)}
-              onFeePctChanged={(pct) => {
-                setViewingFor((v) => (v ? { ...v, platform_fee_pct: pct } : v))
-                setProfiles((prev) => prev.map((p) => (p.id === viewingFor.id ? { ...p, platform_fee_pct: pct } : p)))
-              }}
             />
           )}
         </div>
@@ -508,13 +528,11 @@ function OrganizerDetailsModal({
   busy,
   onClose,
   onClearBank,
-  onFeePctChanged,
 }: {
   profile: OrganizerProfile
   busy: boolean
   onClose: () => void
   onClearBank: () => void
-  onFeePctChanged: (pct: number | null) => void
 }) {
   const u = profile.users
   const hasBankDetails = !!(
@@ -522,42 +540,9 @@ function OrganizerDetailsModal({
     profile.branch_name || profile.bank_code || profile.branch_code
   )
 
-  // Per-organizer PAYOUT platform-fee percentage override — the cut MyScope
-  // keeps from this organizer's gross before paying them out. Blank = use
-  // the platform-wide default. Input holds the display value in PERCENT
-  // (e.g. "3"), converted to a fraction (0.03) at save time.
-  const [feePctInput, setFeePctInput] = useState(
-    profile.platform_fee_pct != null ? String(profile.platform_fee_pct * 100) : "",
-  )
-  const [savingFeePct, setSavingFeePct] = useState(false)
-  const saveFeePct = async () => {
-    const trimmed = feePctInput.trim()
-    let pct: number | null
-    if (trimmed === "") {
-      pct = null
-    } else {
-      const n = Number(trimmed)
-      if (!Number.isFinite(n) || n < 0 || n > 100) {
-        toast.error("Enter a percentage between 0 and 100, or leave blank for the platform default.")
-        return
-      }
-      pct = n / 100
-    }
-    setSavingFeePct(true)
-    try {
-      await adminAPI.setOrganizerPlatformFeePct(profile.id, pct)
-      toast.success(pct === null ? "Back to platform default fee." : `Platform fee set to ${pct * 100}%.`)
-      onFeePctChanged(pct)
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || "Failed to update platform fee.")
-    } finally {
-      setSavingFeePct(false)
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-lg max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10 max-h-[90vh] overflow-y-auto">
         {/* Header row */}
         <div className="flex items-start justify-between gap-3 mb-5">
           <div className="flex items-center gap-3 min-w-0">
@@ -588,34 +573,6 @@ function OrganizerDetailsModal({
 
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <StatusBadge status={profile.verification_status} />
-          <div
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm"
-            title="Custom payout platform-fee percentage for this organizer. Leave blank to use the platform default."
-          >
-            <Percent className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-xs text-muted-foreground">Platform fee</span>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step="0.01"
-              inputMode="decimal"
-              value={feePctInput}
-              onChange={(e) => setFeePctInput(e.target.value)}
-              placeholder="default"
-              disabled={savingFeePct}
-              className="w-14 bg-transparent text-sm focus:outline-none disabled:opacity-50"
-            />
-            <span className="text-muted-foreground">%</span>
-            <button
-              type="button"
-              onClick={saveFeePct}
-              disabled={savingFeePct}
-              className="ml-1 text-xs font-semibold text-primary hover:underline disabled:opacity-50"
-            >
-              {savingFeePct ? "Saving…" : "Set"}
-            </button>
-          </div>
         </div>
 
         {/* Details grid */}
@@ -764,7 +721,7 @@ function RejectModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-lg max-w-md w-full p-6">
+      <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10">
         <h2 className="text-xl font-bold text-foreground mb-1">Reject application</h2>
         <p className="text-sm text-muted-foreground mb-4">
           {profile.business_name} — the applicant will see this reason and can re-apply with edits.
@@ -775,7 +732,7 @@ function RejectModal({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={4}
-          className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          className="w-full rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
           placeholder="e.g. NIC/BR number does not match the registered business name."
           maxLength={1000}
           autoFocus
@@ -787,7 +744,7 @@ function RejectModal({
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="flex-1 px-4 py-2 bg-muted text-foreground rounded-lg hover:opacity-90 transition disabled:opacity-50"
+            className="flex-1 rounded-lg bg-muted px-4 py-2 text-foreground transition hover:bg-muted/70 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -795,7 +752,7 @@ function RejectModal({
             type="button"
             disabled={busy || !trimmed}
             onClick={() => onSubmit(trimmed)}
-            className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 transition disabled:opacity-50"
+            className="flex-1 rounded-md bg-destructive px-4 py-2 text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50"
           >
             {busy ? "Rejecting…" : "Reject"}
           </button>
@@ -825,7 +782,7 @@ function ClearBankModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-lg max-w-md w-full p-6">
+      <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10">
         <h2 className="text-xl font-bold text-foreground mb-1">Clear bank details?</h2>
         <p className="text-sm text-muted-foreground mb-4">
           Removes {profile.business_name}&rsquo;s stored bank name, account number/name, and branch
@@ -837,7 +794,7 @@ function ClearBankModal({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
-          className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          className="w-full rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
           placeholder="e.g. Organizer resigned and requested their bank details be removed."
           maxLength={500}
           autoFocus
@@ -849,7 +806,7 @@ function ClearBankModal({
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="flex-1 px-4 py-2 bg-muted text-foreground rounded-lg hover:opacity-90 transition disabled:opacity-50"
+            className="flex-1 rounded-lg bg-muted px-4 py-2 text-foreground transition hover:bg-muted/70 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -857,7 +814,7 @@ function ClearBankModal({
             type="button"
             disabled={busy || !valid}
             onClick={() => onSubmit(trimmed)}
-            className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 transition disabled:opacity-50"
+            className="flex-1 rounded-md bg-destructive px-4 py-2 text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50"
           >
             {busy ? "Clearing…" : "Clear bank details"}
           </button>
@@ -899,7 +856,7 @@ function RevokeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+      <div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10 max-h-[90vh] overflow-y-auto">
         <div className="flex items-start gap-3 mb-4">
           <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
             <ShieldOff className="h-5 w-5" />
@@ -957,7 +914,7 @@ function RevokeModal({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
-          className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          className="w-full rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
           placeholder="e.g. Policy violation — repeated no-show events leaving attendees stranded."
           maxLength={1000}
         />
@@ -973,7 +930,7 @@ function RevokeModal({
           type="text"
           value={typedName}
           onChange={(e) => setTypedName(e.target.value)}
-          className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
           placeholder={profile.business_name}
           autoComplete="off"
         />
@@ -1000,7 +957,7 @@ function RevokeModal({
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="flex-1 px-4 py-2 bg-muted text-foreground rounded-lg hover:opacity-90 transition disabled:opacity-50"
+            className="flex-1 rounded-lg bg-muted px-4 py-2 text-foreground transition hover:bg-muted/70 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -1008,7 +965,7 @@ function RevokeModal({
             type="button"
             disabled={!canSubmit}
             onClick={() => onSubmit(trimmedReason, hasBlockers && forceAck)}
-            className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 rounded-md bg-destructive px-4 py-2 text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {busy
               ? "Revoking…"
@@ -1045,7 +1002,7 @@ function DeleteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-lg max-w-md w-full p-6">
+      <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10">
         <div className="flex items-start gap-3 mb-4">
           <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive">
             <Trash2 className="h-4 w-4" />
@@ -1072,7 +1029,7 @@ function DeleteModal({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
-              className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              className="w-full rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
               placeholder="e.g. duplicate account; merged with main organizer profile"
               maxLength={1000}
               autoFocus
@@ -1099,7 +1056,7 @@ function DeleteModal({
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="flex-1 px-4 py-2 bg-muted text-foreground rounded-lg hover:opacity-90 transition disabled:opacity-50"
+            className="flex-1 rounded-lg bg-muted px-4 py-2 text-foreground transition hover:bg-muted/70 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -1107,7 +1064,7 @@ function DeleteModal({
             type="button"
             disabled={busy || !reasonValid}
             onClick={() => onSubmit(trimmed, force)}
-            className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 transition disabled:opacity-50"
+            className="flex-1 rounded-md bg-destructive px-4 py-2 text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50"
           >
             {busy ? "Deleting…" : "Delete"}
           </button>

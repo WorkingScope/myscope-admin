@@ -9,6 +9,16 @@ import { adminAPI } from "@/lib/apiEndpoints"
 import { useAuth } from "@/contexts/auth-context"
 import toast from "react-hot-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   ArrowDown,
   ArrowUp,
   Calendar,
@@ -18,11 +28,13 @@ import {
   ImagePlus,
   Link as LinkIcon,
   Loader,
+  Loader2,
   Pencil,
   Plus,
   Save,
   Search,
   Sparkles,
+  Star,
   Trash2,
   X,
 } from "lucide-react"
@@ -88,6 +100,8 @@ export default function HeroCarouselPage() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<HeroSlide | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchSlides = async () => {
     try {
@@ -256,17 +270,18 @@ export default function HeroCarouselPage() {
     }
   }
 
-  const remove = async (s: HeroSlide) => {
-    if (!window.confirm("Delete this slide? This can't be undone.")) return
-    setBusyId(s.id)
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
     try {
-      await adminAPI.deleteHeroSlide(s.id)
-      setSlides((prev) => prev.filter((x) => x.id !== s.id))
+      await adminAPI.deleteHeroSlide(deleteTarget.id)
+      setSlides((prev) => prev.filter((x) => x.id !== deleteTarget.id))
       toast.success("Slide deleted")
+      setDeleteTarget(null)
     } catch {
       toast.error("Delete failed")
     } finally {
-      setBusyId(null)
+      setDeleting(false)
     }
   }
 
@@ -275,18 +290,23 @@ export default function HeroCarouselPage() {
       <AdminLayout user={user || undefined}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Hero carousel</h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Upload images that show on the homepage hero. Each slide can optionally link somewhere
-                (event, external page) — leave the link blank for a passive banner.
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Star className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Hero Carousel</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Upload images that show on the homepage hero. Each slide can optionally link somewhere
+                  (event, external page) — leave the link blank for a passive banner.
+                </p>
+              </div>
             </div>
             <button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
               Add slide
@@ -318,7 +338,7 @@ export default function HeroCarouselPage() {
                     onToggleActive={() => toggleActive(s)}
                     onUp={() => move(s, -1)}
                     onDown={() => move(s, 1)}
-                    onDelete={() => remove(s)}
+                    onDelete={() => setDeleteTarget(s)}
                   />
                 ))}
             </ul>
@@ -340,6 +360,26 @@ export default function HeroCarouselPage() {
             />
           )}
         </div>
+
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this slide?</AlertDialogTitle>
+              <AlertDialogDescription>This can&rsquo;t be undone.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); confirmDelete() }}
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete slide"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminLayout>
     </ProtectedRoute>
   )
@@ -370,14 +410,14 @@ function SlideRow({
   onDelete: () => void
 }) {
   return (
-    <li className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center">
+    <li className="flex flex-col gap-4 rounded-2xl bg-card p-3 shadow-sm dark:ring-1 dark:ring-white/10 sm:flex-row sm:items-center">
       {/* Thumb — for event-backed slides we fall back to the event's banner. */}
-      <div className="relative aspect-[21/9] w-full overflow-hidden rounded-md bg-gray-100 dark:bg-gray-700 sm:w-48">
+      <div className="relative aspect-[21/9] w-full overflow-hidden rounded-md bg-muted sm:w-48">
         {(() => {
           const src = slide.image_url || slide.event?.banner_url
           if (!src) {
             return (
-              <div className="flex h-full w-full items-center justify-center text-gray-400">
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                 <ImagePlus className="h-6 w-6" />
               </div>
             )
@@ -415,21 +455,21 @@ function SlideRow({
       {/* Info */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+          <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
             #{slide.sort_order}
           </span>
           {(slide.title || slide.event?.title) ? (
-            <div className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <div className="truncate text-sm font-semibold text-foreground">
               {slide.title || slide.event?.title}
             </div>
           ) : (
-            <div className="text-xs italic text-gray-500">No title</div>
+            <div className="text-xs italic text-muted-foreground">No title</div>
           )}
         </div>
         {slide.subtitle && (
-          <div className="mt-0.5 line-clamp-1 text-xs text-gray-500">{slide.subtitle}</div>
+          <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{slide.subtitle}</div>
         )}
-        <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-gray-500">
+        <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
           <LinkIcon className="h-3 w-3" />
           {slide.link_url ? (
             <span className="truncate font-mono">{slide.link_url}</span>
@@ -463,7 +503,7 @@ function SlideRow({
           title="Delete"
           disabled={busy}
           onClick={onDelete}
-          className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/30"
+          className="text-destructive hover:bg-destructive/10"
         >
           <Trash2 className="h-4 w-4" />
         </IconBtn>
@@ -492,7 +532,7 @@ function IconBtn({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700 ${className}`}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
     >
       {children}
     </button>
@@ -532,15 +572,15 @@ function SlideEditor({
       onClick={() => !saving && !uploading && onClose()}
     >
       <div
-        className="w-full max-w-xl rounded-xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+        className="w-full max-w-xl rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-lg font-semibold text-foreground">
               {isNew ? "Add hero slide" : "Edit slide"}
             </h2>
-            <p className="mt-0.5 text-xs text-gray-500">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               Landscape images (21:9) look best. Leave the link empty for a passive banner.
             </p>
           </div>
@@ -548,7 +588,7 @@ function SlideEditor({
             type="button"
             onClick={onClose}
             disabled={saving || uploading}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -558,7 +598,7 @@ function SlideEditor({
         <div className="space-y-4">
           {/* Source mode selector — two big toggle buttons. Switching modes
               clears the other source so we never accidentally save both. */}
-          <div className="grid grid-cols-2 gap-2 rounded-lg border border-gray-200 p-1 dark:border-gray-700">
+          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
             {(
               [
                 { value: "image" as const, label: "Upload image", icon: ImagePlus },
@@ -583,8 +623,8 @@ function SlideEditor({
                   }}
                   className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     active
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                      ? "bg-card text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -597,11 +637,11 @@ function SlideEditor({
           {/* IMAGE MODE — upload an image. Same as before. */}
           {form.mode === "image" && (
             <div>
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Image
               </label>
               {form.image_url ? (
-                <div className="relative aspect-[21/9] overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+                <div className="relative aspect-[21/9] overflow-hidden rounded-md bg-muted">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={form.image_url} alt="Slide preview" className="h-full w-full object-cover" />
                   <label className="absolute bottom-2 right-2 cursor-pointer">
@@ -622,7 +662,7 @@ function SlideEditor({
                   </label>
                 </div>
               ) : (
-                <label className="flex aspect-[21/9] cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-blue-900/20">
+                <label className="flex aspect-[21/9] cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/40 transition-colors hover:border-primary/40 hover:bg-primary/5">
                   <input
                     type="file"
                     accept="image/*"
@@ -635,14 +675,14 @@ function SlideEditor({
                   />
                   <div className="text-center">
                     {uploading ? (
-                      <Loader className="mx-auto h-6 w-6 animate-spin text-gray-400" />
+                      <Loader className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                     ) : (
-                      <ImagePlus className="mx-auto h-6 w-6 text-gray-400" />
+                      <ImagePlus className="mx-auto h-6 w-6 text-muted-foreground" />
                     )}
-                    <div className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                    <div className="mt-2 text-xs font-medium text-muted-foreground">
                       {uploading ? "Uploading…" : "Click to upload an image"}
                     </div>
-                    <div className="mt-0.5 text-[11px] text-gray-400">PNG / JPG, up to 8 MB</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">PNG / JPG, up to 8 MB</div>
                   </div>
                 </label>
               )}
@@ -655,7 +695,7 @@ function SlideEditor({
               one slide per picked event. */}
           {form.mode === "event" && (
             <div>
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Featured events
               </label>
               <EventPicker
@@ -691,7 +731,7 @@ function SlideEditor({
                 value={form.link_url}
                 onChange={(e) => setForm((f) => ({ ...f, link_url: e.target.value }))}
                 maxLength={2048}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                className="w-full rounded-md bg-muted px-3 py-2 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                 placeholder="https://example.com or /events/abc"
               />
             </Field>
@@ -703,7 +743,7 @@ function SlideEditor({
             type="button"
             onClick={onClose}
             disabled={saving || uploading}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            className="rounded-md bg-muted px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
           >
             Cancel
           </button>
@@ -718,7 +758,7 @@ function SlideEditor({
               uploading ||
               (form.mode === "image" ? !form.image_url : form.event_ids.length === 0)
             }
-            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? <Loader className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {saving
@@ -746,11 +786,11 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">
+      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </label>
       {children}
-      {hint && <p className="mt-1 text-[11px] text-gray-500">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   )
 }
@@ -803,35 +843,35 @@ function EventPicker({
     <div className="space-y-3">
       {/* Search bar */}
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search approved events…"
-          className="h-10 w-full rounded-md border border-gray-300 bg-white pl-9 pr-3 text-sm dark:border-gray-600 dark:bg-gray-900"
+          className="h-10 w-full rounded-md bg-muted pl-9 pr-3 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
         />
         {pickedIds.length > 0 && (
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
             {pickedIds.length} selected
           </span>
         )}
       </div>
 
       {!multi && pickedIds.length > 0 && (
-        <p className="text-[11px] text-gray-500">
+        <p className="text-[11px] text-muted-foreground">
           You&rsquo;re editing one slide — picking another event swaps the current selection.
         </p>
       )}
 
       {/* Card grid */}
-      <div className="max-h-112 overflow-y-auto rounded-md border border-gray-100 p-2 dark:border-gray-700">
+      <div className="max-h-112 overflow-y-auto rounded-md bg-muted/30 p-2">
         {loading ? (
-          <div className="flex items-center justify-center p-8 text-gray-400">
+          <div className="flex items-center justify-center p-8 text-muted-foreground">
             <Loader className="h-5 w-5 animate-spin" />
           </div>
         ) : results.length === 0 ? (
-          <div className="p-8 text-center text-xs text-gray-500">
+          <div className="p-8 text-center text-xs text-muted-foreground">
             No approved events match.
           </div>
         ) : (
@@ -842,37 +882,37 @@ function EventPicker({
               return (
                 <li key={ev.id}>
                   <div
-                    className={`flex items-center gap-3 rounded-md border p-2 transition-colors ${
+                    className={`flex items-center gap-3 rounded-md p-2 transition-colors ${
                       picked
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
+                        ? "bg-primary/10 ring-1 ring-primary/40"
                         : locked
-                          ? "border-gray-200 bg-gray-50 opacity-70 dark:border-gray-700 dark:bg-gray-800/60"
-                          : "border-gray-200 bg-white hover:border-blue-300 dark:border-gray-700 dark:bg-gray-800"
+                          ? "bg-muted/60 opacity-70"
+                          : "bg-card shadow-sm hover:bg-muted/60 dark:ring-1 dark:ring-white/10"
                     }`}
                   >
-                    <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-gray-700">
+                    <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded bg-muted">
                       {ev.banner_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={ev.banner_url} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-gray-400">
+                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                           <Calendar className="h-4 w-4" />
                         </div>
                       )}
                       {picked && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-blue-600/30">
-                          <span className="rounded-full bg-blue-600 p-1 text-white">
+                        <div className="absolute inset-0 flex items-center justify-center bg-primary/30">
+                          <span className="rounded-full bg-primary p-1 text-primary-foreground">
                             <Check className="h-3 w-3" />
                           </span>
                         </div>
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <div className="truncate text-sm font-medium text-foreground">
                         {ev.title}
                       </div>
                       {(ev.venue_name || ev.start_time) && (
-                        <div className="mt-0.5 truncate text-[11px] text-gray-500">
+                        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
                           {ev.start_time && new Date(ev.start_time).toLocaleDateString()}
                           {ev.start_time && ev.venue_name && " · "}
                           {ev.venue_name}
@@ -882,7 +922,7 @@ function EventPicker({
                     {locked ? (
                       <span
                         title="Another slide already shows this event"
-                        className="shrink-0 rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-500 dark:border-gray-600"
+                        className="shrink-0 rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground"
                       >
                         Already added
                       </span>
@@ -892,8 +932,8 @@ function EventPicker({
                         onClick={() => onTogglePick(ev.id)}
                         className={`shrink-0 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                           picked
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                            : "bg-muted text-foreground hover:bg-muted/70"
                         }`}
                       >
                         {picked ? "Selected" : multi ? "Add" : "Pick"}

@@ -8,6 +8,16 @@ import { PageLoader } from "@/components/ui/loading"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Settings as SettingsIcon,
   Save,
   RotateCcw,
@@ -15,7 +25,6 @@ import {
   ToggleLeft,
   Plus,
   Trash2,
-  AlertTriangle,
   Loader2,
   Check,
   Wrench,
@@ -246,14 +255,21 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteCustomRole = async (name: string) => {
-    if (!confirm(`Delete the custom role "${name}"?`)) return
+  const [deleteRoleTarget, setDeleteRoleTarget] = useState<string | null>(null)
+  const [deletingRole, setDeletingRole] = useState(false)
+
+  const confirmDeleteCustomRole = async () => {
+    if (!deleteRoleTarget) return
+    setDeletingRole(true)
     try {
-      await adminAPI.deleteCustomRole(name)
+      await adminAPI.deleteCustomRole(deleteRoleTarget)
       toast.success("Custom role deleted")
+      setDeleteRoleTarget(null)
       fetchSettings()
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to delete role")
+    } finally {
+      setDeletingRole(false)
     }
   }
 
@@ -306,20 +322,22 @@ export default function SettingsPage() {
       <AdminLayout user={currentUser || undefined}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <SettingsIcon className="h-8 w-8 text-primary" />
-                Settings
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Configure platform features and access control.
-              </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <SettingsIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Settings</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Configure platform features and access control.
+                </p>
+              </div>
             </div>
             <button
               type="button"
               onClick={() => setConfirmReset(true)}
-              className="inline-flex items-center gap-2 self-start rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition"
+              className="inline-flex items-center gap-2 self-start rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
             >
               <RotateCcw className="h-4 w-4" />
               Reset to defaults
@@ -342,7 +360,7 @@ export default function SettingsPage() {
           {/* Sidebar + content layout */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
             <aside className="lg:sticky lg:top-20 lg:self-start">
-              <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1 lg:flex-col lg:overflow-visible">
+              <nav className="flex gap-1 overflow-x-auto rounded-xl bg-card p-1 shadow-sm dark:ring-1 dark:ring-white/10 lg:flex-col lg:overflow-visible">
                 <SectionNav
                   icon={Shield}
                   label="Roles & Access"
@@ -372,7 +390,7 @@ export default function SettingsPage() {
                   setNewRoleDescription={setNewRoleDescription}
                   setNewRolePermissions={setNewRolePermissions}
                   onCreate={handleCreateCustomRole}
-                  onDelete={handleDeleteCustomRole}
+                  onDelete={(name) => setDeleteRoleTarget(name)}
                   creating={creatingRole}
                   onAddAssignment={handleAddAssignment}
                   onRemoveAssignment={handleRemoveAssignment}
@@ -392,50 +410,52 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Reset modal */}
-        {confirmReset && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={() => !resetting && setConfirmReset(false)}
-          >
-            <div
-              className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                  <AlertTriangle className="h-5 w-5" />
-                </span>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Reset all settings?</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    This restores feature flags and roles to their factory defaults. Custom roles
-                    you&rsquo;ve created will be removed. This can&rsquo;t be undone.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setConfirmReset(false)}
-                  disabled={resetting}
-                  className="rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted transition disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  disabled={resetting}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90 transition disabled:opacity-50"
-                >
-                  {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-                  Reset everything
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Reset confirmation dialog */}
+        <AlertDialog open={confirmReset} onOpenChange={(open) => { if (!open) setConfirmReset(false) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset all settings?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This restores feature flags and roles to their factory defaults. Custom roles
+                you&rsquo;ve created will be removed. This can&rsquo;t be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setConfirmReset(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={resetting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); handleReset() }}
+              >
+                {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reset everything"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete custom role confirmation dialog */}
+        <AlertDialog open={deleteRoleTarget !== null} onOpenChange={(open) => { if (!open) setDeleteRoleTarget(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this custom role?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteRoleTarget && (
+                  <>The custom role <span className="font-medium text-foreground">&ldquo;{deleteRoleTarget}&rdquo;</span> will be removed. Anyone assigned to it loses its permissions.</>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteRoleTarget(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deletingRole}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); confirmDeleteCustomRole() }}
+              >
+                {deletingRole ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete role"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminLayout>
     </ProtectedRoute>
   )
@@ -563,7 +583,7 @@ function RolesSection({
             return (
               <div
                 key={role}
-                className="group rounded-xl border border-border bg-muted/30 p-4 transition-colors hover:border-primary/30"
+                className="group rounded-xl bg-muted/30 p-4 transition-colors hover:bg-muted/50"
               >
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-sm font-semibold capitalize text-foreground">{role.replace(/-/g, " ")}</h4>
@@ -645,7 +665,7 @@ function RolesSection({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search permissions"
-                className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-8 w-full rounded-md bg-muted pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
           </div>
@@ -666,7 +686,7 @@ function RolesSection({
               const someSelected = groupKeys.some((k) => newRolePermissions.includes(k))
 
               return (
-                <div key={group.group} className="rounded-xl border border-border bg-muted/20 p-3">
+                <div key={group.group} className="rounded-xl bg-muted/20 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -692,17 +712,17 @@ function RolesSection({
                           key={p.key}
                           type="button"
                           onClick={() => togglePerm(p.key)}
-                          className={`group flex items-start gap-2.5 rounded-lg border p-3 text-left transition ${
+                          className={`group flex items-start gap-2.5 rounded-lg p-3 text-left transition ${
                             on
-                              ? "border-primary/40 bg-primary/5"
-                              : "border-border bg-background hover:border-primary/30"
+                              ? "bg-primary/10 ring-1 ring-primary/40"
+                              : "bg-card shadow-sm hover:bg-muted/60 dark:ring-1 dark:ring-white/10"
                           }`}
                         >
                           <span
                             className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded ${
                               on
                                 ? "bg-primary text-primary-foreground"
-                                : "border border-input bg-background"
+                                : "bg-muted"
                             }`}
                           >
                             {on && <Check className="h-3 w-3" />}
@@ -722,7 +742,7 @@ function RolesSection({
         </div>
 
         {/* Actions */}
-        <div className="mt-6 flex items-center justify-end gap-2 border-t border-border pt-4">
+        <div className="mt-6 flex items-center justify-end gap-2 border-t border-border/60 pt-4">
           {(newRoleName || newRoleDescription || newRolePermissions.length > 0) && (
             <button
               type="button"
@@ -754,7 +774,7 @@ function RolesSection({
 
 function CustomRoleRow({ role, onDelete }: { role: CustomRole; onDelete: () => void }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30">
+    <div className="flex items-start justify-between gap-3 rounded-xl bg-card p-4 shadow-sm transition-shadow hover:shadow-md dark:ring-1 dark:ring-white/10">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <h4 className="font-semibold text-foreground">{role.name}</h4>
@@ -791,7 +811,7 @@ function CustomRoleRow({ role, onDelete }: { role: CustomRole; onDelete: () => v
 
 function EmptyCustomRoles() {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-muted/10 p-8 text-center">
+    <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
       <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Shield className="h-5 w-5" />
       </span>
@@ -830,7 +850,7 @@ function RoleAssignmentRow({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-muted/30 p-4">
+    <div className="rounded-xl bg-muted/30 p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -881,7 +901,7 @@ function RoleAssignmentRow({
           }}
           placeholder="teammate@gmail.com"
           aria-label={`Add email to ${roleName}`}
-          className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="flex-1 rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
         />
         <button
           type="button"
@@ -963,8 +983,8 @@ function FeaturesSection({
       >
         <div className="space-y-3">
           <div
-            className={`flex items-center justify-between gap-4 rounded-xl border p-4 ${
-              sms.enabled ? "border-primary/40 bg-primary/5" : "border-border bg-muted/30"
+            className={`flex items-center justify-between gap-4 rounded-xl p-4 ${
+              sms.enabled ? "bg-primary/5 ring-2 ring-primary/30" : "bg-muted/30"
             }`}
           >
             <div className="flex items-start gap-3">
@@ -1045,10 +1065,10 @@ function FeaturesSection({
         variant="danger"
       >
         <div
-          className={`flex flex-col gap-4 rounded-xl border p-4 ${
+          className={`flex flex-col gap-4 rounded-xl p-4 ${
             features.maintenanceMode
-              ? "border-amber-500/40 bg-amber-500/10"
-              : "border-border bg-muted/30"
+              ? "bg-amber-500/10 ring-2 ring-amber-500/30"
+              : "bg-muted/30"
           }`}
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1091,7 +1111,7 @@ function FeaturesSection({
                 rows={2}
                 maxLength={280}
                 placeholder="We're making some quick updates. Bookings may be intermittent — sorry for the bother."
-                className="w-full resize-none rounded-lg border border-amber-500/40 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                className="w-full resize-none rounded-lg bg-background px-3 py-2 text-sm text-foreground ring-1 ring-amber-500/30 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/50"
               />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Leave blank to use the default message.</span>
@@ -1137,7 +1157,7 @@ function StatCard({
   hint?: string
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-2xl bg-card p-4 shadow-sm dark:ring-1 dark:ring-white/10">
       <div className="flex items-center gap-3">
         <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <Icon className="h-4 w-4" />
@@ -1214,17 +1234,17 @@ function SectionCard({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-2xl border bg-card ${
-        variant === "danger" ? "border-destructive/30" : "border-border"
+      className={`overflow-hidden rounded-2xl bg-card shadow-sm dark:ring-1 ${
+        variant === "danger" ? "ring-2 ring-destructive/30 dark:ring-destructive/30" : "dark:ring-white/10"
       }`}
     >
-      <header className="border-b border-border px-6 py-4">
+      <header className="border-b border-border/60 px-6 py-4">
         <h2 className="text-base font-semibold text-foreground">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
       </header>
       <div className="px-6 py-5">{children}</div>
       {footer && (
-        <div className="flex items-center justify-end gap-3 border-t border-border bg-muted/30 px-6 py-3">
+        <div className="flex items-center justify-end gap-3 border-t border-border/60 bg-muted/30 px-6 py-3">
           {footer}
         </div>
       )}
@@ -1263,7 +1283,7 @@ function ToggleRow({
   onChange: (v: boolean) => void
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/30 p-4">
+    <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/30 p-4">
       <div className="min-w-0 flex-1">
         <p className="font-medium text-foreground">{title}</p>
         <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
@@ -1346,7 +1366,7 @@ function Input({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+      className="w-full rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
     />
   )
 }

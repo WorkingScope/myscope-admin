@@ -11,6 +11,16 @@ import { ErrorMessage } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   AlertTriangle,
   ArrowLeft,
   Calendar,
@@ -143,6 +153,8 @@ function ShopOrderDetailInner() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [cancelReason, setCancelReason] = useState("")
 
   const load = async () => {
     if (!id) return
@@ -170,16 +182,14 @@ function ShopOrderDetailInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  const handleForceCancel = async () => {
-    if (!order) return
-    const reason = window.prompt("Reason for cancelling this order (required, logged for audit):")
-    if (!reason || !reason.trim()) return
-    if (!window.confirm(`Force-cancel ${order.order_reference}? Stock will be released. This does NOT refund the buyer.`)) return
-
+  const confirmForceCancel = async () => {
+    if (!order || !cancelReason.trim()) return
     setCancelling(true)
     try {
-      await adminAPI.forceCancelShopOrder(order.id, reason.trim())
+      await adminAPI.forceCancelShopOrder(order.id, cancelReason.trim())
       toast.success("Order cancelled.")
+      setShowCancelDialog(false)
+      setCancelReason("")
       await load()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to cancel order"
@@ -241,9 +251,9 @@ function ShopOrderDetailInner() {
           {canCancel && (
             <button
               type="button"
-              onClick={handleForceCancel}
+              onClick={() => { setCancelReason(""); setShowCancelDialog(true) }}
               disabled={cancelling}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-destructive/40 px-3 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-destructive/10 px-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
             >
               {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <XOctagon className="h-4 w-4" />}
               Force-cancel
@@ -261,12 +271,12 @@ function ShopOrderDetailInner() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             {/* Items */}
-            <section className="rounded-xl border border-border bg-card p-5">
+            <section className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Items</h2>
               <ul className="mt-3 divide-y divide-border">
                 {items.map((it) => (
                   <li key={it.id} className="flex items-center gap-3 py-3">
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {it.image_snapshot ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={it.image_snapshot} alt="" className="h-full w-full object-cover" />
@@ -288,7 +298,7 @@ function ShopOrderDetailInner() {
 
             {/* Address / pickup info */}
             {order.fulfillment_type === "shipping" && order.shipping_address && (
-              <section className="rounded-xl border border-border bg-card p-5">
+              <section className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   <Truck className="h-4 w-4" />
                   Shipping to
@@ -307,7 +317,7 @@ function ShopOrderDetailInner() {
               </section>
             )}
             {order.fulfillment_type === "pickup" && (
-              <section className="rounded-xl border border-border bg-card p-5">
+              <section className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   <Package className="h-4 w-4" />
                   Pickup
@@ -317,7 +327,7 @@ function ShopOrderDetailInner() {
             )}
 
             {order.notes && (
-              <section className="rounded-xl border border-border bg-card p-5">
+              <section className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Internal notes</h2>
                 <pre className="mt-2 whitespace-pre-wrap text-sm">{order.notes}</pre>
               </section>
@@ -326,7 +336,7 @@ function ShopOrderDetailInner() {
 
           <aside className="space-y-4 lg:col-span-1">
             {/* Summary */}
-            <section className="rounded-xl border border-border bg-card p-5 space-y-2 text-sm">
+            <section className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10 space-y-2 text-sm">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Summary</h2>
               <Row label="Subtotal" value={formatMoney(order.subtotal, order.currency)} />
               {Number(order.discount_amount) > 0 && (
@@ -344,7 +354,7 @@ function ShopOrderDetailInner() {
             </section>
 
             {/* Payment */}
-            <section className="rounded-xl border border-border bg-card p-5">
+            <section className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 <CreditCard className="h-4 w-4" />
                 Payment
@@ -363,7 +373,7 @@ function ShopOrderDetailInner() {
             </section>
 
             {/* Buyer */}
-            <section className="rounded-xl border border-border bg-card p-5">
+            <section className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Buyer</h2>
               <ul className="mt-3 space-y-2 text-sm">
                 {(buyer?.name || order.shipping_address?.name) && (
@@ -393,7 +403,7 @@ function ShopOrderDetailInner() {
 
             {/* Organizer */}
             {organizer && (
-              <section className="rounded-xl border border-border bg-card p-5">
+              <section className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Seller</h2>
                 <div className="mt-3 flex items-start gap-3">
                   {organizer.profile_image_url ? (
@@ -421,6 +431,36 @@ function ShopOrderDetailInner() {
           </aside>
         </div>
       </div>
+
+      {/* Force-cancel dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={(open) => { if (!open) { setShowCancelDialog(false); setCancelReason("") } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Force-cancel this order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {order.order_reference}: stock will be released. This does <strong>not</strong> refund the buyer —
+              issue a refund separately if one is owed. Give a reason for the audit log.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <textarea
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            placeholder="Reason for cancelling this order..."
+            rows={3}
+            className="mt-3 w-full resize-none rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowCancelDialog(false); setCancelReason("") }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelling || !cancelReason.trim()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); confirmForceCancel() }}
+            >
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Force-cancel order"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   )
 }

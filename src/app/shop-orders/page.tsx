@@ -9,6 +9,7 @@ import { PageLoader } from "@/components/ui/loading"
 import { ErrorMessage, EmptyState } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   AlertTriangle,
   Calendar,
@@ -136,13 +137,13 @@ function ShopOrdersInner() {
   return (
     <AdminLayout user={user || undefined}>
       <div className="space-y-6">
-        <header className="flex items-start justify-between gap-4">
+        <header className="flex items-center gap-3.5">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <ShoppingBag className="h-6 w-6" />
+          </div>
           <div>
-            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-              <ShoppingBag className="h-6 w-6 text-primary" />
-              Shop Orders
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Shop Orders</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
               Oversight across every organizer storefront. Read-mostly — force-cancel only for support escalations.
             </p>
           </div>
@@ -160,29 +161,31 @@ function ShopOrdersInner() {
 
         {error && <ErrorMessage message={error} onRetry={load} />}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative max-w-sm flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="search"
-              placeholder="Search by order ref, buyer name or email…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-            />
+        <div className="rounded-2xl bg-card p-3 shadow-sm dark:ring-1 dark:ring-white/10">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative max-w-sm flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                placeholder="Search by order ref, buyer name or email…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 w-full rounded-lg bg-muted pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as "all" | OrderStatus)}
+              aria-label="Filter by status"
+              className="h-9 rounded-lg bg-muted px-3 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="all">All statuses</option>
+              <option value="Pending">Awaiting payment</option>
+              <option value="Confirmed">Paid</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Refunded">Refunded</option>
+            </select>
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "all" | OrderStatus)}
-            aria-label="Filter by status"
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            <option value="all">All statuses</option>
-            <option value="Pending">Awaiting payment</option>
-            <option value="Confirmed">Paid</option>
-            <option value="Cancelled">Cancelled</option>
-            <option value="Refunded">Refunded</option>
-          </select>
         </div>
 
         {filtered.length === 0 ? (
@@ -196,54 +199,54 @@ function ShopOrdersInner() {
             }
           />
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">Order</th>
-                  <th className="px-4 py-3">Buyer</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Fulfillment</th>
-                  <th className="px-4 py-3">Total</th>
-                  <th className="px-4 py-3">Created</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+          <div className="overflow-hidden rounded-2xl bg-card shadow-sm dark:ring-1 dark:ring-white/10">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order</TableHead>
+                  <TableHead>Buyer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Fulfillment</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filtered.map((o) => (
-                  <tr key={o.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 font-mono text-xs text-foreground">{o.order_reference}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                  <TableRow key={o.id}>
+                    <TableCell className="font-mono text-xs text-foreground">{o.order_reference}</TableCell>
+                    <TableCell className="text-muted-foreground">
                       {o.shipping_address?.name || o.buyer_email || "—"}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell>
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLES[o.status]}`}>
                         {STATUS_LABEL[o.status]}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       <span className="capitalize">{o.fulfillment_type}</span>
                       {o.status === "Confirmed" && (
                         <span className="ml-1 text-xs">· {FULFILLMENT_LABEL[o.fulfillment_status]}</span>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-foreground">{formatMoney(o.total_amount, o.currency)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(o.created_at)}</td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-foreground">{formatMoney(o.total_amount, o.currency)}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatDate(o.created_at)}</TableCell>
+                    <TableCell>
                       <div className="flex justify-end">
                         <Link
                           href={`/shop-orders/${o.id}`}
-                          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border px-2 text-xs font-medium hover:bg-muted"
+                          className="inline-flex h-7 items-center gap-1.5 rounded-md bg-muted px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"
                         >
                           <Eye className="h-3.5 w-3.5" />
                           View
                         </Link>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -260,7 +263,7 @@ function SummaryTile({
   tone?: "success" | "warning"
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-2xl bg-card p-4 shadow-sm dark:ring-1 dark:ring-white/10">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         {label}

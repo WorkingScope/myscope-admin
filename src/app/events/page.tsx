@@ -10,6 +10,16 @@ import { ErrorMessage, EmptyState } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   AlertTriangle,
   Calendar,
   Eye,
@@ -117,18 +127,27 @@ export default function EventsPage() {
     }
   }
 
-  const handleReject = async (id: string) => {
-    // Reason is required server-side. Use prompt() as a quick path —
-    // the dedicated /events/review page has a proper modal.
-    const reason = window.prompt("Reason for rejection (required, visible to the organizer):")
-    if (!reason || !reason.trim()) return
+  const [rejectTarget, setRejectTarget] = useState<Event | null>(null)
+  const [rejectReason, setRejectReason] = useState("")
+  const [rejecting, setRejecting] = useState(false)
 
+  const openReject = (event: Event) => {
+    setRejectReason("")
+    setRejectTarget(event)
+  }
+
+  const confirmReject = async () => {
+    if (!rejectTarget || !rejectReason.trim()) return
+    setRejecting(true)
     try {
-      await adminAPI.rejectEvent(id, reason.trim())
+      await adminAPI.rejectEvent(rejectTarget.id, rejectReason.trim())
       toast.success("Event rejected")
+      setRejectTarget(null)
       fetchEvents()
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to reject event")
+    } finally {
+      setRejecting(false)
     }
   }
 
@@ -195,19 +214,23 @@ export default function EventsPage() {
       <AdminLayout user={currentUser || undefined}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <Calendar className="h-8 w-8 text-primary" />
-                Event Management
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Review submitted events. Organizers create events from their own dashboard.
-              </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Calendar className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                  Events
+                </h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Review submitted events. Organizers create events from their own dashboard.
+                </p>
+              </div>
             </div>
             <Link
               href="/events/review"
-              className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:opacity-90 transition"
+              className="inline-flex shrink-0 items-center rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               <ListChecks className="mr-2 h-4 w-4" />
               Approval queue
@@ -215,7 +238,7 @@ export default function EventsPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Total Events" value={stats.total} />
             <StatCard title="Approved" value={stats.approved} />
             <StatCard title="Pending" value={stats.pending} />
@@ -223,16 +246,16 @@ export default function EventsPage() {
           </div>
 
           {/* Filters */}
-          <div className="bg-card border border-border rounded-lg p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="rounded-2xl bg-card p-4 shadow-sm dark:ring-1 dark:ring-white/10">
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Search events..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-lg bg-muted py-2 pl-10 pr-4 text-foreground placeholder-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <select
@@ -240,7 +263,7 @@ export default function EventsPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 title="Filter by approval status"
                 aria-label="Filter by approval status"
-                className="px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -266,7 +289,7 @@ export default function EventsPage() {
                 const sold = event.tickets_sold ?? 0
                 const cap = event.tickets_available ?? 0
                 return (
-                  <div key={event.id} className={`bg-card border rounded-lg overflow-hidden transition-colors ${event.pinned ? 'border-amber-500/60 hover:border-amber-500' : 'border-border hover:border-primary/50'}`}>
+                  <div key={event.id} className={`overflow-hidden rounded-2xl bg-card shadow-sm transition-shadow hover:shadow-md dark:ring-1 ${event.pinned ? 'ring-2 ring-amber-500/60 dark:ring-amber-500/60' : 'dark:ring-white/10'}`}>
                     <div className="relative h-48 bg-primary/10 flex items-center justify-center overflow-hidden">
                       {event.pinned && (
                         <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
@@ -341,7 +364,7 @@ export default function EventsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleReject(event.id)}
+                            onClick={() => openReject(event)}
                             className="flex-1 px-3 py-2 text-sm bg-destructive/10 text-destructive rounded-md hover:bg-destructive/20 transition flex items-center justify-center gap-1"
                           >
                             <XCircle className="h-4 w-4" />
@@ -350,7 +373,7 @@ export default function EventsPage() {
                         </div>
                       )}
 
-                      <div className="pt-2 border-t border-border space-y-2">
+                      <div className="pt-2 border-t border-border/60 space-y-2">
                         <button
                           type="button"
                           onClick={() => handleTogglePin(event)}
@@ -401,73 +424,89 @@ export default function EventsPage() {
           )}
         </div>
 
-        {/* Delete confirmation modal */}
-        {deleteTarget && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={closeDelete}
-          >
-            <div
-              className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                  <Trash2 className="h-5 w-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-semibold text-foreground">Delete this event?</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
+        {/* Reject confirmation dialog */}
+        <AlertDialog open={rejectTarget !== null} onOpenChange={(open) => { if (!open) setRejectTarget(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reject this event?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {rejectTarget && (
+                  <>
+                    Give a reason for rejecting{" "}
+                    <span className="font-medium text-foreground">&ldquo;{rejectTarget.title}&rdquo;</span>.
+                    This will be visible to the organizer.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection..."
+              rows={3}
+              className="mt-3 w-full resize-none rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setRejectTarget(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={rejecting || !rejectReason.trim()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); confirmReject() }}
+              >
+                {rejecting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reject event"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) closeDelete() }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget && (
+                  <>
                     You&rsquo;re about to delete{" "}
                     <span className="font-semibold text-foreground">&ldquo;{deleteTarget.title}&rdquo;</span>
                     {deleteTarget.organizer?.name && (
                       <> by <span className="font-medium text-foreground">{deleteTarget.organizer.name}</span></>
                     )}
                     . Ticket types and pending bookings will be removed too. This can&rsquo;t be undone.
-                  </p>
-
-                  {deleteError && (
-                    <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span>{deleteError}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="mt-5 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={closeDelete}
-                  disabled={deleting}
-                  className="px-3 py-2 text-sm rounded-md border border-border text-foreground hover:bg-muted transition disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                {canForce ? (
-                  <button
-                    type="button"
-                    onClick={() => confirmDelete(true)}
-                    disabled={deleting}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition disabled:opacity-50"
-                  >
-                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
-                    Force delete
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => confirmDelete(false)}
-                    disabled={deleting}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition disabled:opacity-50"
-                  >
-                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                    Delete event
-                  </button>
+                  </>
                 )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            {deleteError && (
+              <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{deleteError}</span>
               </div>
-            </div>
-          </div>
-        )}
+            )}
+
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting} onClick={closeDelete}>Cancel</AlertDialogCancel>
+              {canForce ? (
+                <AlertDialogAction
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={(e) => { e.preventDefault(); confirmDelete(true) }}
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="inline-flex items-center gap-1.5"><AlertTriangle className="h-4 w-4" /> Force delete</span>}
+                </AlertDialogAction>
+              ) : (
+                <AlertDialogAction
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={(e) => { e.preventDefault(); confirmDelete(false) }}
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="inline-flex items-center gap-1.5"><Trash2 className="h-4 w-4" /> Delete event</span>}
+                </AlertDialogAction>
+              )}
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminLayout>
     </ProtectedRoute>
   )
@@ -475,9 +514,9 @@ export default function EventsPage() {
 
 function StatCard({ title, value }: { title: string; value: number }) {
   return (
-    <div className="bg-card border border-border rounded-lg p-6">
+    <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
       <p className="text-sm text-muted-foreground">{title}</p>
-      <p className="text-3xl font-bold text-foreground mt-1">{value}</p>
+      <p className="mt-1 text-3xl font-bold text-foreground">{value}</p>
     </div>
   )
 }

@@ -12,6 +12,16 @@ import { SeatGridPreview, type LayoutData } from "@/components/events/seat-grid-
 import { EventCommunicationsCard } from "@/components/events/event-communications-card"
 import toast from "react-hot-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   AlertTriangle,
   ArrowLeft,
   Calendar,
@@ -101,11 +111,11 @@ interface EventDetail {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  approved: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-  pending: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
-  rejected: "bg-destructive/10 text-destructive border-destructive/30",
-  draft: "bg-muted text-muted-foreground border-border",
-  cancelled: "bg-muted text-muted-foreground border-border",
+  approved: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  pending: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  rejected: "bg-destructive/10 text-destructive",
+  draft: "bg-muted text-muted-foreground",
+  cancelled: "bg-muted text-muted-foreground",
 }
 
 const formatLkr = (n: number) =>
@@ -243,42 +253,16 @@ export default function AdminEventDetailPage() {
       <AdminLayout user={currentUser || undefined}>
         <div className="space-y-6 max-w-5xl">
 
-          {/* Back + header */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <Link
-                href="/events"
-                className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back to events
-              </Link>
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl leading-tight">
-                {event.title}
-              </h1>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-0.5 text-xs font-semibold capitalize ${STATUS_STYLES[event.approval_status] ?? STATUS_STYLES.draft}`}>
-                  {event.approval_status}
-                </span>
-                {event.featured && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                    Featured
-                  </span>
-                )}
-                {event.category && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-0.5 text-xs font-medium text-muted-foreground capitalize">
-                    <Tag className="h-3 w-3" />{event.category}
-                  </span>
-                )}
-                {event.seating_mode && event.seating_mode !== "none" && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-0.5 text-xs font-medium text-muted-foreground">
-                    {SEATING_MODE_LABEL[event.seating_mode]}
-                  </span>
-                )}
-              </div>
-            </div>
+          {/* Top bar — navigation left, primary actions right */}
+          <div className="flex items-center justify-between gap-3">
+            <Link
+              href="/events"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to events
+            </Link>
 
-            {/* Primary actions */}
-            <div className="flex shrink-0 flex-wrap gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               {isPending && (
                 <>
                   <button
@@ -293,7 +277,7 @@ export default function AdminEventDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowRejectModal(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive/20"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-destructive/10 px-4 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20"
                   >
                     <XCircle className="h-4 w-4" />
                     Reject
@@ -305,11 +289,43 @@ export default function AdminEventDetailPage() {
                 (event.approval_status === "approved" || event.approval_status === "pending") && (
                 <Link
                   href={`/events/${event.id}/manage`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
                 >
                   <SlidersHorizontal className="h-4 w-4" /> Manage event
                 </Link>
               )}
+            </div>
+          </div>
+
+          {/* Identity — title + badges */}
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Calendar className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                {event.title}
+              </h1>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_STYLES[event.approval_status] ?? STATUS_STYLES.draft}`}>
+                  {event.approval_status}
+                </span>
+                {event.featured && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    Featured
+                  </span>
+                )}
+                {event.category && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground capitalize">
+                    <Tag className="h-3 w-3" />{event.category}
+                  </span>
+                )}
+                {event.seating_mode && event.seating_mode !== "none" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                    {SEATING_MODE_LABEL[event.seating_mode]}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -324,19 +340,21 @@ export default function AdminEventDetailPage() {
             </div>
           )}
 
-          {/* Banner */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-muted aspect-21/9 w-full">
+          {/* Banner — object-contain so differently-shaped uploads (wide
+              cinematic banners vs. taller poster-style flyers) never get
+              cropped; the surrounding box just caps how tall it can get. */}
+          <div className="flex h-48 w-full items-center justify-center overflow-hidden rounded-2xl bg-muted shadow-sm dark:ring-1 dark:ring-white/10 sm:h-64">
             {event.banner_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={event.banner_url}
                 alt={event.title}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
-                <ImageIcon className="h-16 w-16" />
+                <ImageIcon className="h-12 w-12" />
               </div>
             )}
           </div>
@@ -368,7 +386,7 @@ export default function AdminEventDetailPage() {
                     <img
                       src={event.layout_image_url}
                       alt="Seating / zone layout"
-                      className="w-full rounded-lg border border-border bg-muted object-contain"
+                      className="w-full rounded-lg bg-muted object-contain"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
                     />
                   </a>
@@ -379,7 +397,7 @@ export default function AdminEventDetailPage() {
               {event.seating_mode === "reserved" && (
                 <Section title="Seat Map">
                   {event.seats_preview && event.seats_preview.sections.length > 0 ? (
-                    <div className="overflow-hidden rounded-lg border border-border bg-muted/20 p-3">
+                    <div className="overflow-hidden rounded-lg bg-muted/40 p-3">
                       <SeatGridPreview layout={event.seats_preview} />
                     </div>
                   ) : (
@@ -405,7 +423,7 @@ export default function AdminEventDetailPage() {
                         href={event.venue_location_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
                       >
                         <MapPin className="h-4 w-4 text-primary" />
                         View on map
@@ -424,12 +442,12 @@ export default function AdminEventDetailPage() {
                 {event.ticket_types.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No ticket types defined.</p>
                 ) : (
-                  <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
+                  <div className="divide-y divide-border/60 overflow-hidden rounded-xl bg-muted/30">
                     {event.ticket_types.map((tt) => {
                       const remaining = Math.max(0, tt.quantity_total - tt.quantity_sold)
                       const soldPct = tt.quantity_total > 0 ? (tt.quantity_sold / tt.quantity_total) * 100 : 0
                       return (
-                        <div key={tt.id} className="flex items-center gap-4 bg-card px-4 py-3">
+                        <div key={tt.id} className="flex items-center gap-4 px-4 py-3">
                           <Ticket className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
@@ -447,10 +465,10 @@ export default function AdminEventDetailPage() {
                               <span>max {tt.per_order_limit}/order</span>
                             </div>
                             {/* Progress bar */}
-                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-background">
                               <div
-                                className="h-full rounded-full bg-primary transition-all w-(--sold-pct)"
-                                style={{ '--sold-pct': `${soldPct.toFixed(1)}%` } as React.CSSProperties}
+                                className="h-full rounded-full bg-primary transition-all"
+                                style={{ width: `${soldPct.toFixed(1)}%` }}
                               />
                             </div>
                           </div>
@@ -466,11 +484,6 @@ export default function AdminEventDetailPage() {
                 )}
               </Section>
 
-              {/* Attendees — searchable list of confirmed bookings, mirroring
-                  the organizer's own Attendees tab so support staff don't
-                  need organizer-panel access to look someone up. */}
-              <AttendeesSection eventId={event.id} />
-
               {/* Per-event communications — counts of every email + SMS this
                   event has triggered, broken down by message type. Forward-only:
                   events that ran before this feature shipped show zeros. */}
@@ -480,7 +493,7 @@ export default function AdminEventDetailPage() {
               {event.organizer && (
                 <Section title="Organizer">
                   {/* Avatar + name row */}
-                  <div className="flex items-center gap-4 pb-4 border-b border-border">
+                  <div className="flex items-center gap-4 pb-4 border-b border-border/60">
                     <span className="inline-flex h-16 w-16 shrink-0 overflow-hidden rounded-full bg-primary/10 text-xl font-bold text-primary">
                       {event.organizer.profile_image ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -543,7 +556,7 @@ export default function AdminEventDetailPage() {
                   </div>
 
                   {/* Event stats */}
-                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4">
+                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/60 pt-4">
                     <div className="rounded-xl bg-muted/50 px-4 py-3 text-center">
                       <p className="text-2xl font-bold text-foreground">{event.organizer.total_events}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">Total events</p>
@@ -555,13 +568,19 @@ export default function AdminEventDetailPage() {
                   </div>
                 </Section>
               )}
+
+              {/* Attendees — searchable list of confirmed bookings, mirroring
+                  the organizer's own Attendees tab so support staff don't
+                  need organizer-panel access to look someone up. Placed last
+                  since it's the least-used, most-detailed section. */}
+              <AttendeesSection eventId={event.id} />
             </div>
 
             {/* Right — sidebar */}
             <div className="space-y-4 lg:col-span-1">
 
               {/* Key facts */}
-              <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+              <div className="space-y-4 rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Event info</h3>
 
                 <div className="space-y-3">
@@ -584,40 +603,13 @@ export default function AdminEventDetailPage() {
                 </div>
               </div>
 
-              {/* Actions repeated at sidebar for easy access */}
-              {isPending && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Review decision</h3>
-                  <button
-                    type="button"
-                    onClick={handleApprove}
-                    disabled={approving}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    {approving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                    Approve event
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowRejectModal(true)}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20"
-                  >
-                    <XCircle className="h-4 w-4" />
-                    Reject event
-                  </button>
-                  <p className="text-[11px] text-muted-foreground text-center">
-                    The organizer will be notified of your decision.
-  </p>
-                </div>
-              )}
-
               {/* Danger zone */}
-              <div className="rounded-2xl border border-destructive/20 bg-card p-5">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-destructive/70 mb-3">Danger zone</h3>
+              <div className="rounded-2xl bg-card p-5 shadow-sm ring-2 ring-destructive/20">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-destructive/70">Danger zone</h3>
                 <button
                   type="button"
                   onClick={() => { setDeleteError(null); setCanForce(false); setShowDeleteModal(true) }}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20"
                 >
                   <Trash2 className="h-4 w-4" />
                   Delete event
@@ -627,124 +619,78 @@ export default function AdminEventDetailPage() {
           </div>
         </div>
 
-        {/* Reject modal */}
-        {showRejectModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={() => { if (!rejecting) { setShowRejectModal(false); setRejectReason("") } }}
-          >
-            <div
-              className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-3 mb-4">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                  <XCircle className="h-5 w-5" />
-                </span>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Reject event</h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Provide a clear reason — the organizer will see this and can revise their event.
-                  </p>
-                </div>
-              </div>
+        {/* Reject confirmation dialog */}
+        <AlertDialog open={showRejectModal} onOpenChange={(open) => { if (!open) { setShowRejectModal(false); setRejectReason("") } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reject event</AlertDialogTitle>
+              <AlertDialogDescription>
+                Provide a clear reason — the organizer will see this and can revise their event.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <label htmlFor="reject-reason" className="mb-1.5 mt-3 block text-sm font-medium text-foreground">
+              Rejection reason <span className="text-destructive">*</span>
+            </label>
+            <textarea
+              id="reject-reason"
+              rows={4}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Missing venue details, incomplete description, inappropriate content…"
+              className="w-full resize-none rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setShowRejectModal(false); setRejectReason("") }}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={rejecting || !rejectReason.trim()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); handleReject() }}
+              >
+                {rejecting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm rejection"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-              <label htmlFor="reject-reason" className="block text-sm font-medium text-foreground mb-1.5">
-                Rejection reason <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                id="reject-reason"
-                rows={4}
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="e.g. Missing venue details, incomplete description, inappropriate content…"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={showDeleteModal} onOpenChange={(open) => { if (!open) { setShowDeleteModal(false); setDeleteError(null); setCanForce(false) } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+              <AlertDialogDescription>
+                <span className="font-semibold text-foreground">&ldquo;{event.title}&rdquo;</span> and all its ticket types will be permanently removed. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
 
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowRejectModal(false); setRejectReason("") }}
-                  disabled={rejecting}
-                  className="px-4 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReject}
-                  disabled={rejecting || !rejectReason.trim()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground transition hover:opacity-90 disabled:opacity-50"
-                >
-                  {rejecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                  Confirm rejection
-                </button>
+            {deleteError && (
+              <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{deleteError}</span>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Delete modal */}
-        {showDeleteModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={() => { if (!deleting) { setShowDeleteModal(false); setDeleteError(null); setCanForce(false) } }}
-          >
-            <div
-              className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                  <Trash2 className="h-5 w-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-semibold text-foreground">Delete this event?</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    <span className="font-semibold text-foreground">&ldquo;{event.title}&rdquo;</span> and all its ticket types will be permanently removed. This cannot be undone.
-                  </p>
-                  {deleteError && (
-                    <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span>{deleteError}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="mt-5 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowDeleteModal(false); setDeleteError(null); setCanForce(false) }}
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setShowDeleteModal(false); setDeleteError(null); setCanForce(false) }}>Cancel</AlertDialogCancel>
+              {canForce ? (
+                <AlertDialogAction
                   disabled={deleting}
-                  className="px-3 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition disabled:opacity-50"
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={(e) => { e.preventDefault(); handleDelete(true) }}
                 >
-                  Cancel
-                </button>
-                {canForce ? (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(true)}
-                    disabled={deleting}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition disabled:opacity-50"
-                  >
-                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
-                    Force delete
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(false)}
-                    disabled={deleting}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition disabled:opacity-50"
-                  >
-                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                    Delete event
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="inline-flex items-center gap-1.5"><AlertTriangle className="h-4 w-4" /> Force delete</span>}
+                </AlertDialogAction>
+              ) : (
+                <AlertDialogAction
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={(e) => { e.preventDefault(); handleDelete(false) }}
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="inline-flex items-center gap-1.5"><Trash2 className="h-4 w-4" /> Delete event</span>}
+                </AlertDialogAction>
+              )}
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminLayout>
     </ProtectedRoute>
   )
@@ -823,20 +769,20 @@ function AttendeesSection({ eventId }: { eventId: string }) {
               placeholder="Search by name, email, or booking ref…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-lg bg-muted py-2 pl-10 pr-4 text-sm text-foreground placeholder-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
           {filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground">No attendees match &ldquo;{search}&rdquo;.</p>
           ) : (
-            <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
+            <div className="divide-y divide-border/60 overflow-hidden rounded-xl bg-muted/30">
               {filtered.map((b) => {
                 const name = b.attendee_info?.name || b.guest_name || "—"
                 const email = b.attendee_info?.email || b.guest_email || "—"
                 const checkedTickets = b.checked_in_tickets ?? 0
                 const fullyIn = checkedTickets > 0 && checkedTickets >= b.number_of_tickets
                 return (
-                  <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 bg-card px-4 py-3">
+                  <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-foreground">{name}</span>
@@ -867,7 +813,7 @@ function AttendeesSection({ eventId }: { eventId: string }) {
                       type="button"
                       onClick={() => resend(b)}
                       disabled={busyId === b.id}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70 disabled:opacity-50"
                     >
                       {busyId === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                       Resend
@@ -885,7 +831,7 @@ function AttendeesSection({ eventId }: { eventId: string }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
       <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
       {children}
     </div>

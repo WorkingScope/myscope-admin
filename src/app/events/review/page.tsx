@@ -10,6 +10,16 @@ import { ErrorMessage, EmptyState } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Calendar,
   CheckCircle2,
   XCircle,
@@ -17,6 +27,7 @@ import {
   Mail,
   MapPin,
   Loader,
+  Loader2,
   Tag,
   Users,
 } from "lucide-react"
@@ -76,6 +87,8 @@ export default function EventReviewPage() {
   const [error, setError] = useState<string | null>(null)
   const [pendingActionId, setPendingActionId] = useState<string | null>(null)
   const [rejectingFor, setRejectingFor] = useState<EventRow | null>(null)
+  const [rejectReason, setRejectReason] = useState("")
+  const [approvingFor, setApprovingFor] = useState<EventRow | null>(null)
   const [tickets, setTickets] = useState<Record<string, TicketType[]>>({})
 
   const fetchEvents = async (status: ApprovalStatus) => {
@@ -110,13 +123,14 @@ export default function EventReviewPage() {
     }
   }
 
-  const handleApprove = async (event: EventRow) => {
-    if (!confirm(`Approve "${event.title}"? It will become publicly visible.`)) return
-    setPendingActionId(event.id)
+  const confirmApprove = async () => {
+    if (!approvingFor) return
+    setPendingActionId(approvingFor.id)
     try {
-      await adminAPI.approveEvent(event.id)
+      await adminAPI.approveEvent(approvingFor.id)
       toast.success("Event approved")
-      setEvents((prev) => prev.filter((e) => e.id !== event.id))
+      setEvents((prev) => prev.filter((e) => e.id !== approvingFor.id))
+      setApprovingFor(null)
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to approve")
     } finally {
@@ -124,11 +138,16 @@ export default function EventReviewPage() {
     }
   }
 
-  const submitRejection = async (reason: string) => {
-    if (!rejectingFor) return
+  const openReject = (event: EventRow) => {
+    setRejectReason("")
+    setRejectingFor(event)
+  }
+
+  const submitRejection = async () => {
+    if (!rejectingFor || !rejectReason.trim()) return
     setPendingActionId(rejectingFor.id)
     try {
-      await adminAPI.rejectEvent(rejectingFor.id, reason)
+      await adminAPI.rejectEvent(rejectingFor.id, rejectReason.trim())
       toast.success("Event rejected")
       setEvents((prev) => prev.filter((e) => e.id !== rejectingFor.id))
       setRejectingFor(null)
@@ -146,32 +165,38 @@ export default function EventReviewPage() {
       <AdminLayout user={user || undefined}>
         <div className="space-y-6">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <Calendar className="h-8 w-8 text-primary" />
-              Event Review Queue
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Review organizer-submitted events. Approving makes them publicly visible.
-            </p>
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Calendar className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                Event Review Queue
+              </h1>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Review organizer-submitted events. Approving makes them publicly visible.
+              </p>
+            </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-border">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  tab === t.key
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-            <div className="ml-auto text-xs text-muted-foreground py-2">
+          <div className="rounded-2xl bg-card p-3 shadow-sm dark:ring-1 dark:ring-white/10">
+            <div className="flex items-center gap-1 rounded-xl bg-muted p-1">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+                    tab === t.key
+                      ? "bg-card text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground">
               {!loading && `${counts.shown} shown`}
             </div>
           </div>
@@ -201,22 +226,75 @@ export default function EventReviewPage() {
                   onLoadTickets={() => ensureTickets(e.id)}
                   busy={pendingActionId === e.id}
                   showActions={tab === "pending"}
-                  onApprove={() => handleApprove(e)}
-                  onReject={() => setRejectingFor(e)}
+                  onApprove={() => setApprovingFor(e)}
+                  onReject={() => openReject(e)}
                 />
               ))}
             </div>
           )}
         </div>
 
-        {rejectingFor && (
-          <RejectModal
-            event={rejectingFor}
-            busy={pendingActionId === rejectingFor.id}
-            onClose={() => setRejectingFor(null)}
-            onSubmit={submitRejection}
-          />
-        )}
+        {/* Approve confirmation dialog */}
+        <AlertDialog open={approvingFor !== null} onOpenChange={(open) => { if (!open) setApprovingFor(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Approve this event?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {approvingFor && (
+                  <>
+                    <span className="font-medium text-foreground">&ldquo;{approvingFor.title}&rdquo;</span>{" "}
+                    will become publicly visible.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setApprovingFor(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={pendingActionId === approvingFor?.id}
+                onClick={(e) => { e.preventDefault(); confirmApprove() }}
+              >
+                {pendingActionId === approvingFor?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Approve"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Reject confirmation dialog */}
+        <AlertDialog open={rejectingFor !== null} onOpenChange={(open) => { if (!open) setRejectingFor(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reject this event?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {rejectingFor && (
+                  <>
+                    {rejectingFor.title} — the organizer will see this reason and can edit + re-submit.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={4}
+              maxLength={1000}
+              autoFocus
+              placeholder="e.g. Banner image is low quality; please re-upload at 1200×630."
+              className="mt-3 w-full resize-none rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <div className="mt-1 text-right text-xs text-muted-foreground">{rejectReason.trim().length} / 1000</div>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setRejectingFor(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={pendingActionId === rejectingFor?.id || !rejectReason.trim()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); submitRejection() }}
+              >
+                {pendingActionId === rejectingFor?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reject"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminLayout>
     </ProtectedRoute>
   )
@@ -248,7 +326,7 @@ function EventCard({
   }, [expanded])
 
   return (
-    <div className="bg-card border border-border rounded-lg p-5 flex flex-col">
+    <div className="flex flex-col rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
       {/* Banner — show only if URL provided */}
       {event.banner_url && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -314,7 +392,7 @@ function EventCard({
       )}
 
       {/* Ticket types (lazy on expand) */}
-      <div className="mt-3 border-t border-border pt-3">
+      <div className="mt-3 border-t border-border/60 pt-3">
         <button
           onClick={() => setExpanded((v) => !v)}
           className="text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1"
@@ -359,7 +437,7 @@ function EventCard({
             ? "Working…"
             : "Approve this event"
         return (
-        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
+        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/60">
           <button
             type="button"
             onClick={onApprove}
@@ -434,59 +512,3 @@ function StatusBadge({ status }: { status: ApprovalStatus }) {
   )
 }
 
-function RejectModal({
-  event,
-  busy,
-  onClose,
-  onSubmit,
-}: {
-  event: EventRow
-  busy: boolean
-  onClose: () => void
-  onSubmit: (reason: string) => void
-}) {
-  const [reason, setReason] = useState("")
-  const trimmed = reason.trim()
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-lg max-w-md w-full p-6">
-        <h2 className="text-xl font-bold text-foreground mb-1">Reject event</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          {event.title} — the organizer will see this reason and can edit + re-submit.
-        </p>
-
-        <label className="block text-sm font-medium text-foreground mb-2">Reason</label>
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          rows={4}
-          className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-          placeholder="e.g. Banner image is low quality; please re-upload at 1200×630."
-          maxLength={1000}
-          autoFocus
-        />
-        <div className="text-xs text-muted-foreground mt-1">{trimmed.length} / 1000</div>
-
-        <div className="flex gap-3 pt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="flex-1 px-4 py-2 bg-muted text-foreground rounded-lg hover:opacity-90 transition disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={busy || !trimmed}
-            onClick={() => onSubmit(trimmed)}
-            className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 transition disabled:opacity-50"
-          >
-            {busy ? "Rejecting…" : "Reject"}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}

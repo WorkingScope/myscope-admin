@@ -8,12 +8,24 @@ import { PageLoader } from "@/components/ui/loading"
 import { ErrorMessage, EmptyState } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Banknote,
   Calendar,
   CheckCircle2,
   Clock,
   Loader,
+  Loader2,
   ShoppingBag,
   X,
   XCircle,
@@ -217,13 +229,21 @@ export default function PayoutsPage() {
     }
   }
 
-  const reject = async (id: string) => {
-    const reason = prompt("Reason for rejecting this payout:")
-    if (!reason?.trim()) return
-    setPendingId(id)
+  const [rejectTarget, setRejectTarget] = useState<Payout | null>(null)
+  const [rejectReason, setRejectReason] = useState("")
+
+  const openReject = (payout: Payout) => {
+    setRejectReason("")
+    setRejectTarget(payout)
+  }
+
+  const confirmReject = async () => {
+    if (!rejectTarget || !rejectReason.trim()) return
+    setPendingId(rejectTarget.id)
     try {
-      await adminAPI.rejectPayout(id, reason.trim())
+      await adminAPI.rejectPayout(rejectTarget.id, rejectReason.trim())
       toast.success("Payout rejected.")
+      setRejectTarget(null)
       setSelected(null)
       load()
     } catch (e: any) {
@@ -337,38 +357,45 @@ export default function PayoutsPage() {
     <ProtectedRoute>
       <AdminLayout user={user ?? undefined}>
         <div className="p-6 space-y-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Payouts</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Allocate organizer earnings and mark bank transfers as paid.
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Banknote className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Payouts</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Allocate organizer earnings and mark bank transfers as paid.
+                </p>
+              </div>
             </div>
             <button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold transition hover:bg-primary/90"
             >
               <Banknote className="w-4 h-4" /> New payout
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex flex-wrap gap-2 border-b border-border pb-2">
-            {TABS.map(t => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className={`px-4 py-2 text-sm rounded-md transition-colors ${
-                  tab === t.key
-                    ? "bg-primary/10 text-primary border border-primary/30"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+          <div className="rounded-2xl bg-card p-3 shadow-sm dark:ring-1 dark:ring-white/10">
+            <div className="flex flex-wrap gap-1 rounded-xl bg-muted p-1">
+              {TABS.map(t => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setTab(t.key)}
+                  className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+                    tab === t.key
+                      ? "bg-card text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {loading ? (
@@ -391,33 +418,33 @@ export default function PayoutsPage() {
               icon={Banknote}
             />
           ) : (
-            <div className="rounded-xl border border-border overflow-x-auto bg-card">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/30">
-                  <tr>
+            <div className="overflow-hidden rounded-2xl bg-card shadow-sm dark:ring-1 dark:ring-white/10">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                     {["Date", "Organizer", "Source", "Amount", "Status", "Actions"].map(h => (
-                      <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
+                      <TableHead key={h}>{h}</TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {payouts.map(p => {
                     const meta = STATUS_BADGE[p.status]
                     return (
-                      <tr
+                      <TableRow
                         key={p.id}
-                        className="border-t border-border hover:bg-muted/20 cursor-pointer"
+                        className="cursor-pointer"
                         onClick={() => setSelected(p)}
                       >
-                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                        <TableCell className="text-muted-foreground">
                           {new Date(p.requested_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           {/* Show organizer BRAND (business_name), with the
                               user name + email as a smaller fallback context
                               line. Admins reviewing payouts know the brand,
                               not the personal account behind it. */}
-                          <div className="font-medium">
+                          <div className="font-medium text-foreground">
                             {p.organizer_profile?.business_name
                               ?? p.organizer?.name
                               ?? p.organizer_id.slice(0, 8)}
@@ -428,32 +455,32 @@ export default function PayoutsPage() {
                               <> · {p.organizer_profile.business_type}</>
                             )}
                           </div>
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <PayoutSourcePill payout={p} />
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
+                        </TableCell>
+                        <TableCell className="font-semibold text-foreground">
                           {formatLkr(p.amount)}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${meta.cls}`}>
                             {meta.icon} {meta.label}
                           </span>
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setSelected(p) }}
-                            className="px-2.5 py-1 rounded text-xs border border-border hover:bg-muted"
+                            className="rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"
                           >
                             View
                           </button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>
@@ -465,7 +492,7 @@ export default function PayoutsPage() {
             onClick={() => !creating && setCreateOpen(false)}
           >
             <div
-              className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+              className="w-full max-w-md rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3">
@@ -482,7 +509,7 @@ export default function PayoutsPage() {
                     id="org"
                     value={selectedOrg}
                     onChange={(e) => onSelectOrg(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="h-10 w-full rounded-lg bg-muted px-3 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                   >
                     <option value="">Select an organizer…</option>
                     {organizers.map((o) => (
@@ -494,7 +521,7 @@ export default function PayoutsPage() {
                 </div>
 
                 {selectedOrg && (
-                  <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                  <div className="rounded-lg bg-muted/60 p-3 text-sm">
                     {balanceLoading ? (
                       <span className="inline-flex items-center gap-2 text-muted-foreground">
                         <Loader className="h-3.5 w-3.5 animate-spin" /> Loading balance…
@@ -517,7 +544,7 @@ export default function PayoutsPage() {
                       id="evt"
                       value={sourceValue}
                       onChange={(e) => onSelectSource(e.target.value)}
-                      className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="h-10 w-full rounded-lg bg-muted px-3 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                     >
                       <option value="">Shop revenue (legacy, storefront-wide)</option>
                       {orgEvents.length > 0 && (
@@ -551,7 +578,7 @@ export default function PayoutsPage() {
                     max={orgBalance?.pending}
                     value={createAmount}
                     onChange={(e) => setCreateAmount(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="h-10 w-full rounded-lg bg-muted px-3 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
 
@@ -563,20 +590,20 @@ export default function PayoutsPage() {
                     value={createNotes}
                     onChange={(e) => setCreateNotes(e.target.value)}
                     placeholder="Internal note"
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="h-10 w-full rounded-lg bg-muted px-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
               </div>
 
               <div className="mt-6 flex justify-end gap-2">
-                <button type="button" onClick={() => setCreateOpen(false)} disabled={creating} className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50">
+                <button type="button" onClick={() => setCreateOpen(false)} disabled={creating} className="rounded-md bg-muted px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/70 disabled:opacity-50">
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={submitCreate}
                   disabled={creating || !selectedOrg}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
                 >
                   {creating ? <Loader className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
                   Create payout
@@ -596,13 +623,13 @@ export default function PayoutsPage() {
               onClick={() => !busy && setSelected(null)}
             >
               <div
-                className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+                className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-card shadow-lg dark:ring-1 dark:ring-white/10"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Sticky header — status, source, close button. The amount
                     moves up here so the most important info is always visible
                     even when the body scrolls. */}
-                <div className="flex items-start justify-between gap-3 border-b border-border bg-muted/30 p-5">
+                <div className="flex items-start justify-between gap-3 border-b border-border/60 bg-muted/30 p-5">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${meta.cls}`}>
@@ -633,14 +660,14 @@ export default function PayoutsPage() {
                   {/* Organizer section */}
                   <section>
                     <SectionLabel icon={<Banknote className="h-3.5 w-3.5" />}>Organizer</SectionLabel>
-                    <div className="mt-2 rounded-xl border border-border">
+                    <div className="mt-2 rounded-xl bg-muted/40">
                       <div className="flex items-start gap-3 p-4">
                         {selected.organizer_profile?.profile_image_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={selected.organizer_profile.profile_image_url}
                             alt=""
-                            className="h-10 w-10 shrink-0 rounded-full border border-border object-cover"
+                            className="h-10 w-10 shrink-0 rounded-full object-cover"
                           />
                         ) : (
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
@@ -675,7 +702,7 @@ export default function PayoutsPage() {
                       here in full (the pill in the header is the visual cue). */}
                   <section>
                     <SectionLabel icon={<Clock className="h-3.5 w-3.5" />}>Payout</SectionLabel>
-                    <div className="mt-2 divide-y divide-border rounded-xl border border-border">
+                    <div className="mt-2 divide-y divide-border/60 rounded-xl bg-muted/40">
                       <DetailRow
                         label="Source"
                         value={
@@ -701,7 +728,7 @@ export default function PayoutsPage() {
                   <section>
                     <SectionLabel icon={<Banknote className="h-3.5 w-3.5" />}>Bank details</SectionLabel>
                     {selected.organizer_profile?.bank_account_number ? (
-                      <div className="mt-2 divide-y divide-border rounded-xl border border-border">
+                      <div className="mt-2 divide-y divide-border/60 rounded-xl bg-muted/40">
                         <DetailRow label="Bank" value={selected.organizer_profile.bank_name || "—"} />
                         <DetailRow label="Branch" value={selected.organizer_profile.branch_name || "—"} />
                         <DetailRow label="Account holder" value={selected.organizer_profile.bank_account_name || "—"} />
@@ -729,7 +756,7 @@ export default function PayoutsPage() {
                         <img
                           src={selected.slip_url}
                           alt="Payment slip"
-                          className="w-full rounded-xl border border-border bg-muted object-contain max-h-64"
+                          className="w-full rounded-xl bg-muted object-contain max-h-64"
                         />
                       </a>
                     </section>
@@ -740,12 +767,12 @@ export default function PayoutsPage() {
                     the approve/reject buttons even on a long card. Only shown
                     for actionable states. */}
                 {(selected.status === "requested" || selected.status === "approved") && (
-                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-card p-4">
+                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 bg-card p-4">
                     <button
                       type="button"
-                      onClick={() => reject(selected.id)}
+                      onClick={() => openReject(selected)}
                       disabled={busy}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-destructive/15 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/25 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-destructive/15 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/25 disabled:opacity-50"
                     >
                       <XCircle className="h-4 w-4" /> Reject
                     </button>
@@ -783,7 +810,7 @@ export default function PayoutsPage() {
             onClick={() => !paySaving && setPayTarget(null)}
           >
             <div
-              className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+              className="w-full max-w-md rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3">
@@ -813,13 +840,13 @@ export default function PayoutsPage() {
                     value={payReference}
                     onChange={(e) => setPayReference(e.target.value)}
                     placeholder="e.g. transfer ID"
-                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="h-10 w-full rounded-lg bg-muted px-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
 
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-foreground">Payment slip (image)</label>
-                  <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border p-5 text-center hover:border-primary/40">
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border bg-muted/30 p-5 text-center transition-colors hover:border-primary/40 hover:bg-primary/5">
                     <input
                       type="file"
                       accept="image/*"
@@ -831,20 +858,20 @@ export default function PayoutsPage() {
                   </label>
                   {paySlipPreview && (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={paySlipPreview} alt="Slip preview" className="mt-3 w-full rounded-lg border border-border bg-muted object-contain max-h-56" />
+                    <img src={paySlipPreview} alt="Slip preview" className="mt-3 w-full rounded-lg bg-muted object-contain max-h-56" />
                   )}
                 </div>
               </div>
 
               <div className="mt-6 flex justify-end gap-2">
-                <button type="button" onClick={() => setPayTarget(null)} disabled={paySaving} className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50">
+                <button type="button" onClick={() => setPayTarget(null)} disabled={paySaving} className="rounded-md bg-muted px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/70 disabled:opacity-50">
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={submitPaid}
                   disabled={paySaving}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {paySaving ? <Loader className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
                   {paySaving ? "Saving…" : "Mark paid"}
@@ -853,6 +880,36 @@ export default function PayoutsPage() {
             </div>
           </div>
         )}
+
+        {/* Reject confirmation dialog */}
+        <AlertDialog open={rejectTarget !== null} onOpenChange={(open) => { if (!open) setRejectTarget(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reject this payout?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {rejectTarget && <>Give a reason for rejecting {formatLkr(rejectTarget.amount)} to{" "}
+                  {rejectTarget.organizer_profile?.business_name || rejectTarget.organizer?.name || "this organizer"}.</>}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection..."
+              rows={3}
+              className="mt-3 w-full resize-none rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setRejectTarget(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={pendingId === rejectTarget?.id || !rejectReason.trim()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); confirmReject() }}
+              >
+                {pendingId === rejectTarget?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reject payout"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminLayout>
     </ProtectedRoute>
   )

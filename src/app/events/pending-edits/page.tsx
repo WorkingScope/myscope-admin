@@ -14,11 +14,22 @@ import { ErrorMessage, EmptyState } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   CalendarCheck,
   CheckCircle2,
   XCircle,
   Clock,
   Loader,
+  Loader2,
   ArrowRight,
 } from "lucide-react"
 
@@ -192,6 +203,8 @@ function PendingEditsContent() {
   // Decline modal state.
   const [declineTarget, setDeclineTarget] = React.useState<PendingEditRow | null>(null)
   const [declineReason, setDeclineReason] = React.useState("")
+  // Approve confirmation state.
+  const [approveTarget, setApproveTarget] = React.useState<PendingEditRow | null>(null)
 
   const load = React.useCallback(async () => {
     setError(null)
@@ -226,15 +239,16 @@ function PendingEditsContent() {
     }
   }
 
-  const approve = async (row: PendingEditRow) => {
-    if (!window.confirm("Apply these changes to the live event?")) return
-    setBusyId(row.id)
+  const confirmApprove = async () => {
+    if (!approveTarget) return
+    setBusyId(approveTarget.id)
     try {
-      const res = await adminAPI.approvePendingEdit(row.id) as {
+      const res = await adminAPI.approvePendingEdit(approveTarget.id) as {
         data?: { success?: boolean; message?: string }
       }
       if (res.data?.success) {
         toast.success(res.data.message || "Changes applied.")
+        setApproveTarget(null)
         await load()
       } else {
         toast.error(res.data?.message || "Couldn't approve.")
@@ -279,11 +293,13 @@ function PendingEditsContent() {
   return (
     <AdminLayout user={user ?? undefined}>
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <CalendarCheck className="h-6 w-6 text-primary" />
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <CalendarCheck className="h-6 w-6" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Edit Review</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Edit Review</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
               Organizer-proposed changes to live events. Approve to apply; decline to discard.
             </p>
           </div>
@@ -335,7 +351,7 @@ function PendingEditsContent() {
               return (
                 <li
                   key={row.id}
-                  className="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
+                  className="overflow-hidden rounded-2xl bg-card shadow-sm dark:ring-1 dark:ring-white/10"
                 >
                   <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
@@ -378,7 +394,7 @@ function PendingEditsContent() {
                         <button
                           type="button"
                           onClick={() => expand(row)}
-                          className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                          className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
                         >
                           {isExpanded
                             ? (isTicketTierAction || isAction ? "Hide details" : "Hide diff")
@@ -388,7 +404,7 @@ function PendingEditsContent() {
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => approve(row)}
+                        onClick={() => setApproveTarget(row)}
                         className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                       >
                         {busy ? <Loader className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
@@ -554,50 +570,63 @@ function PendingEditsContent() {
         )}
       </div>
 
-      {/* Decline modal — small overlay with optional reason. */}
-      {declineTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !busyId && setDeclineTarget(null)}>
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-start gap-3">
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive">
-                <XCircle className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <h2 className="text-base font-semibold text-foreground">Decline these changes?</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  The live event stays unchanged. The organizer will see your reason on their edit page.
-                </p>
-                <textarea
-                  rows={3}
-                  value={declineReason}
-                  onChange={e => setDeclineReason(e.target.value)}
-                  placeholder="Reason (optional but helpful)"
-                  className="mt-3 w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none"
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setDeclineTarget(null)}
-                disabled={!!busyId}
-                className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitDecline}
-                disabled={!!busyId}
-                className="inline-flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-xs font-semibold text-white hover:bg-destructive/90 disabled:opacity-50"
-              >
-                {busyId ? <Loader className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
-                Decline
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Approve confirmation dialog */}
+      <AlertDialog open={approveTarget !== null} onOpenChange={(open) => { if (!open) setApproveTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply these changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {approveTarget && (
+                <>
+                  This will apply the proposed changes to{" "}
+                  <span className="font-medium text-foreground">
+                    &ldquo;{approveTarget.events?.title ?? "this event"}&rdquo;
+                  </span>{" "}
+                  on the live event immediately.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setApproveTarget(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busyId === approveTarget?.id}
+              onClick={(e) => { e.preventDefault(); confirmApprove() }}
+            >
+              {busyId === approveTarget?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Approve"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Decline dialog — optional reason. */}
+      <AlertDialog open={declineTarget !== null} onOpenChange={(open) => { if (!open) setDeclineTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Decline these changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The live event stays unchanged. The organizer will see your reason on their edit page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <textarea
+            rows={3}
+            value={declineReason}
+            onChange={e => setDeclineReason(e.target.value)}
+            placeholder="Reason (optional but helpful)"
+            className="mt-3 w-full resize-none rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeclineTarget(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!!busyId}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); submitDecline() }}
+            >
+              {busyId === declineTarget?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Decline"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   )
 }

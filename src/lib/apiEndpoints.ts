@@ -299,12 +299,9 @@ export const adminAPI = {
   // serve this. Reason required (>=10 chars) for the audit log.
   clearOrganizerBank: (id: string, reason: string) =>
     api.post(`/admin/organizers/${id}/clear-bank`, { reason }),
-  // Per-organizer PAYOUT platform-fee percentage override — the cut MyScope
-  // keeps from this organizer's gross before paying them out. `pct` is a
-  // fraction (0.03 = 3%); pass null to clear the override and fall back to
-  // the platform-wide default.
-  setOrganizerPlatformFeePct: (id: string, pct: number | null) =>
-    api.patch(`/admin/organizers/${id}/platform-fee-pct`, { pct }),
+  // NOTE: the per-organizer PAYOUT platform-fee override that used to live
+  // here has been replaced by a per-EVENT override — see
+  // adminEventManage.setPlatformFeePct below.
 
   // Refunds (Step 12)
   refundBooking: (booking_id: string, reason: string) =>
@@ -442,6 +439,12 @@ export const adminEventManage = {
   // fall back to the platform-wide default.
   setConvenienceFeePct: (id: string, pct: number | null) =>
     api.patch(`/admin/events/${id}/convenience-fee-pct`, { pct }),
+  // Per-event PAYOUT platform-fee percentage override — the cut MyScope
+  // keeps from this event's gross before paying the organizer out. `pct` is
+  // a fraction (0.04 = 4%); pass null to clear the override and fall back
+  // to the platform-wide default. Replaces the old per-organizer override.
+  setPlatformFeePct: (id: string, pct: number | null) =>
+    api.patch(`/admin/events/${id}/platform-fee-pct`, { pct }),
   // Koko BNPL toggle is admin-only, same shape as setConvenienceFee — on top
   // of the global Koko feature flag, both must allow it for a buyer to see
   // Koko on this event. Default is ON.

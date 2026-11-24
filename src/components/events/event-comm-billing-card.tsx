@@ -13,7 +13,6 @@
 
 import { useEffect, useState } from "react"
 import { adminEventManage } from "@/lib/apiEndpoints"
-import { Card } from "@/components/ui/card"
 import toast from "react-hot-toast"
 import { AlertCircle, Loader, Mail, MessageSquare, Save, Wallet } from "lucide-react"
 
@@ -136,39 +135,42 @@ export function EventCommBillingCard({ eventId }: { eventId: string }) {
 
   if (loading) {
     return (
-      <Card>
-        <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
+      <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader className="h-4 w-4 animate-spin" /> Loading billing config…
         </div>
-      </Card>
+      </div>
     )
   }
   if (error || !config) {
     return (
-      <Card>
-        <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+      <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
+        <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error || "Billing config unavailable."}</span>
         </div>
-      </Card>
+      </div>
     )
   }
 
   return (
-    <Card>
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="inline-flex items-center gap-1.5 text-sm font-semibold">
-            <Wallet className="h-4 w-4 text-primary" /> Communications billing
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground max-w-2xl">
-            Charge the organizer per SMS / email this event sends. Changes apply forward only —
-            past sends keep their original billable status and rate.
-          </p>
+    <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Wallet className="h-4.5 w-4.5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Communications billing</h2>
+            <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
+              Charge the organizer per SMS / email this event sends. Changes apply forward only —
+              past sends keep their original billable status and rate.
+            </p>
+          </div>
         </div>
-        <div className="rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs">
+        <div className="shrink-0 rounded-xl bg-muted px-3 py-1.5 text-xs">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Current rates</div>
-          <div className="mt-0.5 font-mono">
+          <div className="mt-0.5 font-mono text-foreground">
             SMS {formatLkr(rates.smsRateLkr)} · Email {formatLkr(rates.emailRateLkr)} per send
           </div>
         </div>
@@ -176,7 +178,7 @@ export function EventCommBillingCard({ eventId }: { eventId: string }) {
 
       {/* Running totals for THIS event (only billable rows count) */}
       {totals ? (
-        <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
           <SmallTile
             label="Billable SMS"
             top={`${totals.sms.count.toLocaleString()} sends`}
@@ -197,7 +199,7 @@ export function EventCommBillingCard({ eventId }: { eventId: string }) {
       ) : null}
 
       {/* Two columns: SMS on the left, Email on the right */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <ChannelColumn
           icon={MessageSquare}
           title="SMS"
@@ -223,13 +225,13 @@ export function EventCommBillingCard({ eventId }: { eventId: string }) {
           type="button"
           onClick={save}
           disabled={saving}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
         >
           {saving ? <Loader className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           {saving ? "Saving…" : "Save billing config"}
         </button>
       </div>
-    </Card>
+    </div>
   )
 }
 
@@ -237,9 +239,9 @@ function SmallTile({
   label, top, sub, highlight = false,
 }: { label: string; top: string; sub: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-md border p-2.5 ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-muted/30"}`}>
+    <div className={`rounded-xl p-3 ${highlight ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/50"}`}>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm font-semibold">{top}</div>
+      <div className="mt-1 text-sm font-semibold text-foreground">{top}</div>
       <div className="text-[11px] text-muted-foreground">{sub}</div>
     </div>
   )
@@ -263,34 +265,40 @@ function ChannelColumn({
   onToggleType: (type: string) => void
 }) {
   return (
-    <div className="rounded-lg border border-border p-3">
-      <label className="mb-3 flex cursor-pointer items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-2 text-sm font-medium">
+    <div className="rounded-xl bg-muted/40 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
           <Icon className="h-4 w-4 text-primary" /> {title} billing
         </span>
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={onToggle}
-          className="h-4 w-4 cursor-pointer accent-primary"
-        />
-      </label>
+        <Toggle checked={enabled} onChange={onToggle} label={`${title} billing`} />
+      </div>
 
-      <p className="mb-2 text-[11px] text-muted-foreground">
+      <p className="mt-2 text-[11px] text-muted-foreground">
         Pick which {title.toLowerCase()} types to charge for. Disabled when billing is off.
       </p>
 
-      <ul className={`space-y-1.5 ${enabled ? "" : "opacity-50 pointer-events-none"}`}>
+      <ul className={`mt-3 space-y-1 ${enabled ? "" : "pointer-events-none opacity-50"}`}>
         {types.map((t) => {
           const checked = billable.includes(t)
           return (
             <li key={t}>
-              <label className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-xs hover:bg-muted/50">
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-card">
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded ${
+                    checked ? "bg-primary text-primary-foreground" : "bg-card ring-1 ring-border"
+                  }`}
+                >
+                  {checked && (
+                    <svg viewBox="0 0 16 16" fill="none" className="h-3 w-3">
+                      <path d="M3.5 8.5L6.5 11.5L12.5 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
                 <input
                   type="checkbox"
                   checked={checked}
                   onChange={() => onToggleType(t)}
-                  className="h-3.5 w-3.5 cursor-pointer accent-primary"
+                  className="sr-only"
                 />
                 <span className="text-foreground">{labelFor(t)}</span>
               </label>
@@ -299,5 +307,25 @@ function ChannelColumn({
         })}
       </ul>
     </div>
+  )
+}
+
+// Native checkbox styled as a switch — matches the toggle used on the
+// Settings page, so "on/off" channel billing reads the same way everywhere.
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
+  return (
+    <label
+      title={label}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+        checked ? "bg-primary" : "bg-border"
+      }`}
+    >
+      <input type="checkbox" checked={checked} onChange={onChange} aria-label={label} className="sr-only" />
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+          checked ? "translate-x-4" : "translate-x-0.5"
+        }`}
+      />
+    </label>
   )
 }

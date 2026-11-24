@@ -15,6 +15,7 @@ import { PageLoader } from "@/components/ui/loading"
 import { ErrorMessage, EmptyState } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Clock, ImageIcon, Search, ShoppingBag } from "lucide-react"
 
 type ProductStatus = "draft" | "pending_review" | "published" | "sold_out" | "rejected" | "archived"
@@ -119,15 +120,17 @@ export default function ShopProductsReviewPage() {
     <ProtectedRoute requiredRoles={["superadmin", "event-manager", "content-manager"]}>
       <AdminLayout user={user || undefined}>
         <div className="space-y-6">
-          <header className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-                <ShoppingBag className="h-6 w-6 text-primary" />
-                Shop Products
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Review organizer products before they go live. Approve to publish, or reject with a reason.
-              </p>
+          <header className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <ShoppingBag className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Shop Products</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Review organizer products before they go live. Approve to publish, or reject with a reason.
+                </p>
+              </div>
             </div>
             {pendingCount > 0 && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-sm font-medium text-amber-700 dark:text-amber-300">
@@ -139,32 +142,34 @@ export default function ShopProductsReviewPage() {
 
           {error && <ErrorMessage message={error} onRetry={load} />}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative max-w-sm flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                placeholder="Search by product, organizer or category…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              />
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() => setStatusFilter(f.value)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    statusFilter === f.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+          <div className="rounded-2xl bg-card p-3 shadow-sm dark:ring-1 dark:ring-white/10">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative max-w-sm flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  placeholder="Search by product, organizer or category…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-9 w-full rounded-lg bg-muted pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1 rounded-xl bg-muted p-1">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => setStatusFilter(f.value)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                      statusFilter === f.value
+                        ? "bg-card text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -174,27 +179,27 @@ export default function ShopProductsReviewPage() {
               description={statusFilter === "pending_review" ? "No products are awaiting review." : "No products match this view."}
             />
           ) : (
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
-              <table className="w-full text-sm">
-                <thead className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Product</th>
-                    <th className="px-4 py-3">Organizer</th>
-                    <th className="px-4 py-3">Price</th>
-                    <th className="px-4 py-3">Stock</th>
-                    <th className="px-4 py-3">Submitted</th>
-                    <th className="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
+            <div className="overflow-hidden rounded-2xl bg-card shadow-sm dark:ring-1 dark:ring-white/10">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Organizer</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Submitted</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {filtered.map((p) => {
                     const cover = Array.isArray(p.images) && p.images[0]
                     const meta = STATUS_META[p.status]
                     return (
-                      <tr key={p.id} className="hover:bg-muted/30">
-                        <td className="px-4 py-3">
+                      <TableRow key={p.id}>
+                        <TableCell>
                           <Link href={`/shop-products/${p.id}`} className="group flex items-center gap-3">
-                            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-muted">
                               {cover ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={cover} alt="" className="h-full w-full object-cover" />
@@ -210,24 +215,24 @@ export default function ShopProductsReviewPage() {
                               </div>
                             </div>
                           </Link>
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <div className="text-foreground">{p.organizer?.name ?? "—"}</div>
                           <div className="text-xs text-muted-foreground">{p.organizer?.email}</div>
-                        </td>
-                        <td className="px-4 py-3 text-foreground">{formatMoney(p.price, p.currency)}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{p.stock_quantity}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{formatDate(p.submitted_at ?? p.created_at)}</td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="text-foreground">{formatMoney(p.price, p.currency)}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.stock_quantity}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(p.submitted_at ?? p.created_at)}</TableCell>
+                        <TableCell>
                           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.className}`}>
                             {meta.label}
                           </span>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>

@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { PageLoader } from "@/components/ui/loading"
 import { ErrorMessage } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   BarChart3,
   Banknote,
@@ -90,47 +91,52 @@ export default function ReportsPage() {
         <div className="p-6 space-y-6">
           {/* Header + filters */}
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Finance reports</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Revenue, refunds, platform fees, and payouts.
-              </p>
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <BarChart3 className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Finance Reports</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Revenue, refunds, platform fees, and payouts.
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex flex-wrap items-end gap-3 rounded-2xl bg-card p-3 shadow-sm dark:ring-1 dark:ring-white/10">
               <div>
-                <label htmlFor="report-from" className="block text-xs text-muted-foreground mb-1">From</label>
+                <label htmlFor="report-from" className="mb-1 block text-xs text-muted-foreground">From</label>
                 <input
                   id="report-from"
                   type="date"
                   title="Report start date"
                   value={from}
                   onChange={e => setFrom(e.target.value)}
-                  className="rounded-md border border-border bg-background text-foreground px-3 py-1.5 text-sm"
+                  className="rounded-lg bg-muted px-3 py-1.5 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <div>
-                <label htmlFor="report-to" className="block text-xs text-muted-foreground mb-1">To</label>
+                <label htmlFor="report-to" className="mb-1 block text-xs text-muted-foreground">To</label>
                 <input
                   id="report-to"
                   type="date"
                   title="Report end date"
                   value={to}
                   onChange={e => setTo(e.target.value)}
-                  className="rounded-md border border-border bg-background text-foreground px-3 py-1.5 text-sm"
+                  className="rounded-lg bg-muted px-3 py-1.5 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <button
                 type="button"
                 onClick={load}
-                className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
               >
                 Run report
               </button>
               <button
                 type="button"
                 onClick={downloadCsv}
-                className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted/30"
+                className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
               >
                 <Download className="w-4 h-4" /> CSV
               </button>
@@ -191,7 +197,7 @@ export default function ReportsPage() {
               </div>
 
               {/* Net to organizers callout */}
-              <div className="rounded-xl border border-border bg-card p-5">
+              <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
                 <div className="text-xs text-muted-foreground uppercase tracking-wide">
                   Net owed to organizers (after platform fee &amp; refunds)
                 </div>
@@ -209,31 +215,31 @@ export default function ReportsPage() {
                   <BarChart3 className="w-4 h-4" /> Per-event breakdown
                 </h2>
                 {data.by_event.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-8 text-center border border-dashed border-border rounded-xl">
+                  <p className="rounded-2xl border border-dashed border-border bg-muted/20 py-8 text-center text-sm text-muted-foreground">
                     No event activity in this window.
                   </p>
                 ) : (
-                  <div className="rounded-xl border border-border overflow-x-auto bg-card">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/30">
-                        <tr>
+                  <div className="overflow-hidden rounded-2xl bg-card shadow-sm dark:ring-1 dark:ring-white/10">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
                           {["Event", "Bookings", "Gross", "Refunded", "Payouts"].map(h => (
-                            <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
+                            <TableHead key={h}>{h}</TableHead>
                           ))}
-                        </tr>
-                      </thead>
-                      <tbody>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {data.by_event.map(e => (
-                          <tr key={e.event_id} className="border-t border-border hover:bg-muted/20">
-                            <td className="px-4 py-3 font-medium">{e.title}</td>
-                            <td className="px-4 py-3">{e.bookings}</td>
-                            <td className="px-4 py-3">LKR {e.gross.toLocaleString()}</td>
-                            <td className="px-4 py-3 text-destructive">LKR {e.refunded.toLocaleString()}</td>
-                            <td className="px-4 py-3">LKR {e.payouts.toLocaleString()}</td>
-                          </tr>
+                          <TableRow key={e.event_id}>
+                            <TableCell className="font-medium text-foreground">{e.title}</TableCell>
+                            <TableCell className="text-muted-foreground">{e.bookings}</TableCell>
+                            <TableCell className="text-foreground">LKR {e.gross.toLocaleString()}</TableCell>
+                            <TableCell className="text-destructive">LKR {e.refunded.toLocaleString()}</TableCell>
+                            <TableCell className="text-foreground">LKR {e.payouts.toLocaleString()}</TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </section>
@@ -259,7 +265,7 @@ function SummaryCard({
 }: { icon: React.ReactNode; label: string; value: string; sub?: string; tone?: ReportTone }) {
   const t = REPORT_TONE[tone]
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
       <div className={`h-9 w-9 rounded-md flex items-center justify-center mb-3 ${t.bg} ${t.text}`}>
         {icon}
       </div>

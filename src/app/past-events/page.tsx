@@ -9,6 +9,16 @@ import { adminAPI } from "@/lib/apiEndpoints"
 import { useAuth } from "@/contexts/auth-context"
 import toast from "react-hot-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   ArrowDown,
   ArrowUp,
   Eye,
@@ -17,6 +27,7 @@ import {
   ImagePlus,
   Link as LinkIcon,
   Loader,
+  Loader2,
   Pencil,
   Plus,
   Save,
@@ -53,6 +64,8 @@ export default function PastEventsPage() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<PastEvent | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchItems = async () => {
     try {
@@ -174,17 +187,18 @@ export default function PastEventsPage() {
     }
   }
 
-  const remove = async (it: PastEvent) => {
-    if (!window.confirm("Delete this past event? This can't be undone.")) return
-    setBusyId(it.id)
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
     try {
-      await adminAPI.deletePastEvent(it.id)
-      setItems((prev) => prev.filter((x) => x.id !== it.id))
+      await adminAPI.deletePastEvent(deleteTarget.id)
+      setItems((prev) => prev.filter((x) => x.id !== deleteTarget.id))
       toast.success("Deleted")
+      setDeleteTarget(null)
     } catch {
       toast.error("Delete failed")
     } finally {
-      setBusyId(null)
+      setDeleting(false)
     }
   }
 
@@ -193,18 +207,23 @@ export default function PastEventsPage() {
       <AdminLayout user={user || undefined}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Past events</h1>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-                Upload photos from past shows. They appear on the home page under “Upcoming events”
-                as an auto-scrolling strip. Add an optional caption or link per image.
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <History className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Past Events</h1>
+                <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground">
+                  Upload photos from past shows. They appear on the home page under “Upcoming events”
+                  as an auto-scrolling strip. Add an optional caption or link per image.
+                </p>
+              </div>
             </div>
             <button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
               Add past event
@@ -236,7 +255,7 @@ export default function PastEventsPage() {
                     onToggleActive={() => toggleActive(it)}
                     onUp={() => move(it, -1)}
                     onDown={() => move(it, 1)}
-                    onDelete={() => remove(it)}
+                    onDelete={() => setDeleteTarget(it)}
                   />
                 ))}
             </ul>
@@ -256,6 +275,26 @@ export default function PastEventsPage() {
             />
           )}
         </div>
+
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this past event?</AlertDialogTitle>
+              <AlertDialogDescription>This can&rsquo;t be undone.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); confirmDelete() }}
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminLayout>
     </ProtectedRoute>
   )
@@ -283,14 +322,14 @@ function ItemRow({
   onDelete: () => void
 }) {
   return (
-    <li className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center">
+    <li className="flex flex-col gap-4 rounded-2xl bg-card p-3 shadow-sm dark:ring-1 dark:ring-white/10 sm:flex-row sm:items-center">
       {/* Thumb */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-md bg-gray-100 dark:bg-gray-700 sm:w-40">
+      <div className="relative aspect-square w-full overflow-hidden rounded-md bg-muted sm:w-40">
         {item.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={item.image_url} alt={item.title || "Past event"} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-400">
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
             <ImagePlus className="h-6 w-6" />
           </div>
         )}
@@ -306,16 +345,16 @@ function ItemRow({
       {/* Info */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+          <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
             #{item.sort_order}
           </span>
           {item.title ? (
-            <div className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{item.title}</div>
+            <div className="truncate text-sm font-semibold text-foreground">{item.title}</div>
           ) : (
-            <div className="text-xs italic text-gray-500">No caption</div>
+            <div className="text-xs italic text-muted-foreground">No caption</div>
           )}
         </div>
-        <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-gray-500">
+        <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
           <LinkIcon className="h-3 w-3" />
           {item.link_url ? (
             <span className="truncate font-mono">{item.link_url}</span>
@@ -343,7 +382,7 @@ function ItemRow({
           title="Delete"
           disabled={busy}
           onClick={onDelete}
-          className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/30"
+          className="text-destructive hover:bg-destructive/10"
         >
           <Trash2 className="h-4 w-4" />
         </IconBtn>
@@ -372,7 +411,7 @@ function IconBtn({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700 ${className}`}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
     >
       {children}
     </button>
@@ -404,13 +443,13 @@ function ItemEditor({
       onClick={() => !saving && !uploading && onClose()}
     >
       <div
-        className="w-full max-w-xl rounded-xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+        className="w-full max-w-xl rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">{isNew ? "Add past event" : "Edit past event"}</h2>
-            <p className="mt-0.5 text-xs text-gray-500">
+            <h2 className="text-lg font-semibold text-foreground">{isNew ? "Add past event" : "Edit past event"}</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
               Square (1:1) photos look best in the scrolling strip.
             </p>
           </div>
@@ -418,7 +457,7 @@ function ItemEditor({
             type="button"
             onClick={onClose}
             disabled={saving || uploading}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -428,11 +467,11 @@ function ItemEditor({
         <div className="space-y-4">
           {/* Image */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Image
             </label>
             {form.image_url ? (
-              <div className="relative mx-auto aspect-square w-full max-w-xs overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+              <div className="relative mx-auto aspect-square w-full max-w-xs overflow-hidden rounded-md bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={form.image_url} alt="Preview" className="h-full w-full object-cover" />
                 <label className="absolute bottom-2 right-2 cursor-pointer">
@@ -453,7 +492,7 @@ function ItemEditor({
                 </label>
               </div>
             ) : (
-              <label className="mx-auto flex aspect-square w-full max-w-xs cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-blue-900/20">
+              <label className="mx-auto flex aspect-square w-full max-w-xs cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/40 transition-colors hover:border-primary/40 hover:bg-primary/5">
                 <input
                   type="file"
                   accept="image/*"
@@ -466,14 +505,14 @@ function ItemEditor({
                 />
                 <div className="text-center">
                   {uploading ? (
-                    <Loader className="mx-auto h-6 w-6 animate-spin text-gray-400" />
+                    <Loader className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                   ) : (
-                    <ImagePlus className="mx-auto h-6 w-6 text-gray-400" />
+                    <ImagePlus className="mx-auto h-6 w-6 text-muted-foreground" />
                   )}
-                  <div className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                  <div className="mt-2 text-xs font-medium text-muted-foreground">
                     {uploading ? "Uploading…" : "Click to upload an image"}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-gray-400">PNG / JPG, up to 8 MB</div>
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">PNG / JPG, up to 8 MB</div>
                 </div>
               </label>
             )}
@@ -486,7 +525,7 @@ function ItemEditor({
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               maxLength={200}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+              className="w-full rounded-md bg-muted px-3 py-2 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
               placeholder="e.g. Legends Live 2025"
             />
           </Field>
@@ -498,7 +537,7 @@ function ItemEditor({
               value={form.link_url}
               onChange={(e) => setForm((f) => ({ ...f, link_url: e.target.value }))}
               maxLength={2048}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+              className="w-full rounded-md bg-muted px-3 py-2 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
               placeholder="https://example.com or /events/abc"
             />
           </Field>
@@ -509,7 +548,7 @@ function ItemEditor({
             type="button"
             onClick={onClose}
             disabled={saving || uploading}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            className="rounded-md bg-muted px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
           >
             Cancel
           </button>
@@ -517,7 +556,7 @@ function ItemEditor({
             type="button"
             onClick={onSave}
             disabled={saving || uploading || !form.image_url}
-            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? <Loader className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {saving ? "Saving…" : isNew ? "Add" : "Save changes"}
@@ -539,11 +578,11 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-gray-500">
+      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </label>
       {children}
-      {hint && <p className="mt-1 text-[11px] text-gray-500">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   )
 }

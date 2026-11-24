@@ -13,7 +13,17 @@ import {
   type VenueLayoutData,
 } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
-import { Armchair, Loader, Plus, Save, Trash2, X } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Armchair, Loader, Loader2, Plus, Save, Trash2, X } from "lucide-react"
 
 // Stage placement options accepted by the backend (STAGE_POSITIONS).
 const STAGE_POSITIONS = [
@@ -74,6 +84,8 @@ export default function VenueTemplatesPage() {
   const [editing, setEditing] = useState<string | "new" | null>(null)
   const [editingDetail, setEditingDetail] = useState<VenueTemplateDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<VenueTemplateSummary | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchTemplates = async () => {
     try {
@@ -120,18 +132,19 @@ export default function VenueTemplatesPage() {
     closeEditor()
   }
 
-  const remove = async (t: VenueTemplateSummary) => {
-    if (!window.confirm(`Delete "${t.name}"? Organizers will no longer see it.`)) return
-    setBusyId(t.id)
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
     try {
-      await venueTemplatesAPI.remove(t.id)
-      setTemplates((prev) => prev.filter((x) => x.id !== t.id))
+      await venueTemplatesAPI.remove(deleteTarget.id)
+      setTemplates((prev) => prev.filter((x) => x.id !== deleteTarget.id))
       toast.success("Template deleted")
+      setDeleteTarget(null)
     } catch (err) {
       const e = err as { response?: { data?: { message?: string } } }
       toast.error(e.response?.data?.message || "Delete failed")
     } finally {
-      setBusyId(null)
+      setDeleting(false)
     }
   }
 
@@ -140,19 +153,24 @@ export default function VenueTemplatesPage() {
       <AdminLayout user={user || undefined}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Venue templates</h1>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-                Build seat maps for common venues once. Reuse them when building a reserved
-                event&rsquo;s seat map from the Reserved Seating Events section — just assign prices to
-                each section.
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Armchair className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Venue Templates</h1>
+                <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground">
+                  Build seat maps for common venues once. Reuse them when building a reserved
+                  event&rsquo;s seat map from the Reserved Seating Events section — just assign prices to
+                  each section.
+                </p>
+              </div>
             </div>
             <button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
               New template
@@ -175,7 +193,7 @@ export default function VenueTemplatesPage() {
                   template={t}
                   busy={busyId === t.id}
                   onEdit={() => openEdit(t)}
-                  onDelete={() => remove(t)}
+                  onDelete={() => setDeleteTarget(t)}
                 />
               ))}
             </ul>
@@ -193,6 +211,33 @@ export default function VenueTemplatesPage() {
             />
           )}
         </div>
+
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this template?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget && (
+                  <>
+                    <span className="font-medium text-foreground">&ldquo;{deleteTarget.name}&rdquo;</span> will be
+                    removed. Organizers will no longer see it when building a seat map.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); confirmDelete() }}
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete template"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminLayout>
     </ProtectedRoute>
   )
@@ -213,27 +258,27 @@ function TemplateCard({
   onDelete: () => void
 }) {
   return (
-    <li className="flex flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <li className="flex flex-col rounded-2xl bg-card p-4 shadow-sm dark:ring-1 dark:ring-white/10">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <div className="truncate text-sm font-semibold text-foreground">
             {template.name}
           </div>
-          <div className="mt-0.5 text-xs text-gray-500">
+          <div className="mt-0.5 text-xs text-muted-foreground">
             {template.total_seats.toLocaleString()} seats · stage {template.stage_position}
           </div>
         </div>
-        <Armchair className="h-5 w-5 shrink-0 text-gray-300 dark:text-gray-600" />
+        <Armchair className="h-5 w-5 shrink-0 text-muted-foreground" />
       </div>
       {template.description && (
-        <p className="mt-2 line-clamp-2 text-xs text-gray-500">{template.description}</p>
+        <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{template.description}</p>
       )}
-      <div className="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-700">
+      <div className="mt-4 flex items-center gap-2 border-t border-border/60 pt-3">
         <button
           type="button"
           onClick={onEdit}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+          className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70 disabled:opacity-50"
         >
           Edit
         </button>
@@ -241,7 +286,7 @@ function TemplateCard({
           type="button"
           onClick={onDelete}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/30"
+          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
         >
           {busy ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
           Delete
@@ -391,16 +436,16 @@ function TemplateEditor({
       onClick={() => !saving && onClose()}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+        className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-card shadow-lg dark:ring-1 dark:ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-6 dark:border-gray-700">
+        <div className="flex items-start justify-between gap-3 border-b border-border/60 p-6">
           <div>
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-lg font-semibold text-foreground">
               {isNew ? "New venue template" : "Edit template"}
             </h2>
-            <p className="mt-0.5 text-xs text-gray-500">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               Add a section per seating block. Each block is a grid of rows × seats. Pricing is set
               by organizers per event.
             </p>
@@ -409,7 +454,7 @@ function TemplateEditor({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -419,7 +464,7 @@ function TemplateEditor({
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
           {loadingDetail ? (
-            <div className="flex items-center justify-center py-16 text-gray-400">
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader className="h-6 w-6 animate-spin" />
             </div>
           ) : (
@@ -433,14 +478,14 @@ function TemplateEditor({
                     onChange={(e) => setName(e.target.value)}
                     maxLength={255}
                     placeholder="e.g. Nelum Pokuna Main Hall"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                    className="w-full rounded-md bg-muted px-3 py-2 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </Field>
                 <Field label="Stage position">
                   <select
                     value={stagePosition}
                     onChange={(e) => setStagePosition(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                    className="w-full rounded-md bg-muted px-3 py-2 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                   >
                     {STAGE_POSITIONS.map((s) => (
                       <option key={s.value} value={s.value}>
@@ -457,17 +502,17 @@ function TemplateEditor({
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={2048}
                   placeholder="Notes for organizers picking this venue"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                  className="w-full rounded-md bg-muted px-3 py-2 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </Field>
 
               {/* Sections */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Sections
                   </h3>
-                  <span className="text-xs font-medium text-gray-500">
+                  <span className="text-xs font-medium text-muted-foreground">
                     {totalSeats.toLocaleString()} seats total
                   </span>
                 </div>
@@ -475,7 +520,7 @@ function TemplateEditor({
                 {sections.map((s, i) => (
                   <div
                     key={i}
-                    className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+                    className="rounded-lg bg-muted/40 p-3"
                   >
                     <div className="flex items-center gap-2">
                       <input
@@ -483,20 +528,20 @@ function TemplateEditor({
                         value={s.color}
                         onChange={(e) => updSection(i, { color: e.target.value })}
                         aria-label="Section colour"
-                        className="h-8 w-8 shrink-0 cursor-pointer rounded border border-gray-300 bg-transparent dark:border-gray-600"
+                        className="h-8 w-8 shrink-0 cursor-pointer rounded bg-transparent"
                       />
                       <input
                         type="text"
                         value={s.name}
                         onChange={(e) => updSection(i, { name: e.target.value })}
                         placeholder="Section name"
-                        className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                        className="flex-1 rounded-md bg-card px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                       />
                       {sections.length > 1 && (
                         <button
                           type="button"
                           onClick={() => setSections((prev) => prev.filter((_, idx) => idx !== i))}
-                          className="shrink-0 rounded-md p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+                          className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                           aria-label="Remove section"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -511,7 +556,7 @@ function TemplateEditor({
                           min={1}
                           value={s.rows}
                           onChange={(e) => updSection(i, { rows: e.target.value })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                          className="w-full rounded-md bg-card px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                         />
                       </Field>
                       <Field label="Seats / row" small>
@@ -520,7 +565,7 @@ function TemplateEditor({
                           min={1}
                           value={s.seatsPerRow}
                           onChange={(e) => updSection(i, { seatsPerRow: e.target.value })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                          className="w-full rounded-md bg-card px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                         />
                       </Field>
                       <Field label="Start row" small>
@@ -530,12 +575,12 @@ function TemplateEditor({
                           onChange={(e) => updSection(i, { rowStart: e.target.value.toUpperCase() })}
                           maxLength={3}
                           placeholder="A"
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm uppercase dark:border-gray-600 dark:bg-gray-800"
+                          className="w-full rounded-md bg-card px-3 py-2 text-sm uppercase text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                         />
                       </Field>
                     </div>
 
-                    <div className="mt-1 text-[11px] text-gray-400">
+                    <div className="mt-1 text-[11px] text-muted-foreground">
                       {(() => {
                         const rows = parseInt(s.rows, 10) || 0
                         const seats = parseInt(s.seatsPerRow, 10) || 0
@@ -551,7 +596,7 @@ function TemplateEditor({
                 <button
                   type="button"
                   onClick={() => setSections((prev) => [...prev, emptyBuilderSection(prev.length)])}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
                 >
                   <Plus className="h-4 w-4" />
                   Add section
@@ -565,12 +610,12 @@ function TemplateEditor({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-gray-100 p-4 dark:border-gray-700">
+        <div className="flex justify-end gap-2 border-t border-border/60 p-4">
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            className="rounded-md bg-muted px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
           >
             Cancel
           </button>
@@ -578,7 +623,7 @@ function TemplateEditor({
             type="button"
             onClick={save}
             disabled={saving || loadingDetail}
-            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? <Loader className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {saving ? "Saving…" : isNew ? "Create template" : "Save changes"}
@@ -599,8 +644,8 @@ function SeatPreview({ sections }: { sections: BuilderSection[] }) {
   if (!drawable) return null
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-      <div className="mb-3 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+    <div className="rounded-lg bg-muted/40 p-4">
+      <div className="mb-3 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Stage
       </div>
       <div className="space-y-3 overflow-x-auto">
@@ -612,7 +657,7 @@ function SeatPreview({ sections }: { sections: BuilderSection[] }) {
           const showSeats = Math.min(seats, MAX_SEATS)
           return (
             <div key={i} className="min-w-fit">
-              <div className="mb-1 text-[11px] font-medium text-gray-500">{s.name || `Section ${i + 1}`}</div>
+              <div className="mb-1 text-[11px] font-medium text-muted-foreground">{s.name || `Section ${i + 1}`}</div>
               <div className="space-y-1">
                 {Array.from({ length: showRows }).map((_, r) => (
                   <div key={r} className="flex gap-1">
@@ -623,11 +668,11 @@ function SeatPreview({ sections }: { sections: BuilderSection[] }) {
                         style={{ background: s.color }}
                       />
                     ))}
-                    {seats > MAX_SEATS && <span className="text-[10px] text-gray-400">+{seats - MAX_SEATS}</span>}
+                    {seats > MAX_SEATS && <span className="text-[10px] text-muted-foreground">+{seats - MAX_SEATS}</span>}
                   </div>
                 ))}
                 {rows > MAX_ROWS && (
-                  <div className="text-[10px] text-gray-400">+{rows - MAX_ROWS} more rows</div>
+                  <div className="text-[10px] text-muted-foreground">+{rows - MAX_ROWS} more rows</div>
                 )}
               </div>
             </div>
@@ -650,7 +695,7 @@ function Field({
   return (
     <div>
       <label
-        className={`mb-1.5 block font-medium uppercase tracking-wider text-gray-500 ${
+        className={`mb-1.5 block font-medium uppercase tracking-wider text-muted-foreground ${
           small ? "text-[10px]" : "text-xs"
         }`}
       >

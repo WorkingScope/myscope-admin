@@ -15,6 +15,16 @@ import { PageLoader } from "@/components/ui/loading"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   AlertCircle, AlertTriangle, ArrowLeft, Archive, CheckCircle, Clock, CreditCard, ExternalLink, ImageIcon,
   Loader2, Mail, MapPin, Package, RotateCcw, Tag, Trash2, Truck, User, Wallet, WalletMinimal, XCircle,
 } from "lucide-react"
@@ -52,12 +62,12 @@ interface AdminProduct {
 }
 
 const STATUS_META: Record<ProductStatus, { label: string; className: string }> = {
-  draft:          { label: "Draft",     className: "bg-muted text-muted-foreground border-border" },
-  pending_review: { label: "In review", className: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30" },
-  published:      { label: "Live",      className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" },
-  sold_out:       { label: "Sold out",  className: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30" },
-  rejected:       { label: "Rejected",  className: "bg-destructive/10 text-destructive border-destructive/30" },
-  archived:       { label: "Archived",  className: "bg-muted text-muted-foreground border-border" },
+  draft:          { label: "Draft",     className: "bg-muted text-muted-foreground" },
+  pending_review: { label: "In review", className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  published:      { label: "Live",      className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  sold_out:       { label: "Sold out",  className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  rejected:       { label: "Rejected",  className: "bg-destructive/10 text-destructive" },
+  archived:       { label: "Archived",  className: "bg-muted text-muted-foreground" },
 }
 
 const FULFILLMENT_LABEL: Record<string, string> = {
@@ -256,14 +266,14 @@ export default function AdminShopProductDetailPage() {
             <div>
               <h1 className="text-2xl font-bold leading-tight sm:text-3xl">{product.title}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold ${meta.className}`}>
+                <span className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold ${meta.className}`}>
                   {meta.label}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-0.5 text-xs font-medium text-muted-foreground">
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-0.5 text-xs font-medium text-muted-foreground">
                   {product.product_type === "event_product" ? "Event product" : "Shop product"}
                 </span>
                 {product.category && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-0.5 text-xs font-medium text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-0.5 text-xs font-medium text-muted-foreground">
                     <Tag className="h-3 w-3" />{product.category}
                   </span>
                 )}
@@ -284,7 +294,7 @@ export default function AdminShopProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowReject(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive/20"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-destructive/10 px-4 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20"
                   >
                     <XCircle className="h-4 w-4" /> Reject
                   </button>
@@ -295,7 +305,7 @@ export default function AdminShopProductDetailPage() {
                   href={`${WEB_URL}/shop/${product.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
                 >
                   View public <ExternalLink className="h-3.5 w-3.5" />
                 </a>
@@ -318,7 +328,7 @@ export default function AdminShopProductDetailPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {product.images.length > 0 ? (
               product.images.map((src, i) => (
-                <div key={i} className="aspect-square overflow-hidden rounded-lg border border-border bg-muted">
+                <div key={i} className="aspect-square overflow-hidden rounded-lg bg-muted">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={src} alt={`${product.title} ${i + 1}`} className="h-full w-full object-cover" />
                 </div>
@@ -369,7 +379,7 @@ export default function AdminShopProductDetailPage() {
 
             {/* Facts sidebar */}
             <div className="space-y-4 lg:col-span-1">
-              <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10 space-y-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product info</h3>
                 <InfoRow icon={Tag} label="Price">{formatMoney(product.price, product.currency)}</InfoRow>
                 <InfoRow icon={Package} label="Stock">{product.stock_quantity}</InfoRow>
@@ -387,7 +397,7 @@ export default function AdminShopProductDetailPage() {
               {/* Housekeeping — same archive/restore/delete controls the
                   organizer has on their own listing, usable here on any
                   organizer's product. */}
-              <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10 space-y-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Manage listing</h3>
                 {/* Per-product convenience fee toggle. Default state is ON —
                     button text reflects whether the next click turns it off
@@ -399,7 +409,7 @@ export default function AdminShopProductDetailPage() {
                     onClick={toggleConvenienceFee}
                     disabled={acting}
                     title="Convenience fee is OFF for this product — new orders won't be charged. Click to enable."
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-600 dark:text-amber-400 transition hover:bg-amber-500/15 disabled:opacity-60"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/15 disabled:opacity-60 dark:text-amber-400"
                   >
                     <Wallet className="h-4 w-4" /> Enable conv. fee
                   </button>
@@ -409,7 +419,7 @@ export default function AdminShopProductDetailPage() {
                     onClick={toggleConvenienceFee}
                     disabled={acting}
                     title="Convenience fee is ON for this product. Click to disable for new orders."
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-muted px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/70 disabled:opacity-60"
                   >
                     <WalletMinimal className="h-4 w-4" /> Disable conv. fee
                   </button>
@@ -422,7 +432,7 @@ export default function AdminShopProductDetailPage() {
                     onClick={toggleKoko}
                     disabled={acting}
                     title="Koko payment is OFF for this product. Click to enable."
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-600 dark:text-amber-400 transition hover:bg-amber-500/15 disabled:opacity-60"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/15 disabled:opacity-60 dark:text-amber-400"
                   >
                     <CreditCard className="h-4 w-4" /> Enable Koko
                   </button>
@@ -432,7 +442,7 @@ export default function AdminShopProductDetailPage() {
                     onClick={toggleKoko}
                     disabled={acting}
                     title="Koko payment is ON for this product (subject to the global Koko switch). Click to disable."
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-muted px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/70 disabled:opacity-60"
                   >
                     <CreditCard className="h-4 w-4" /> Disable Koko
                   </button>
@@ -442,7 +452,7 @@ export default function AdminShopProductDetailPage() {
                     type="button"
                     onClick={archive}
                     disabled={acting}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-muted px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/70 disabled:opacity-60"
                   >
                     {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
                     Archive
@@ -453,7 +463,7 @@ export default function AdminShopProductDetailPage() {
                       type="button"
                       onClick={restore}
                       disabled={acting}
-                      className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-muted px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/70 disabled:opacity-60"
                     >
                       {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
                       Restore to draft
@@ -462,7 +472,7 @@ export default function AdminShopProductDetailPage() {
                       type="button"
                       onClick={() => setShowDeleteModal(true)}
                       disabled={acting || deleting}
-                      className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20 disabled:opacity-60"
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-60"
                     >
                       <Trash2 className="h-4 w-4" /> Delete permanently
                     </button>
@@ -476,7 +486,7 @@ export default function AdminShopProductDetailPage() {
               </div>
 
               {isPending && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10 space-y-3">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Review decision</h3>
                   <button
                     type="button"
@@ -490,7 +500,7 @@ export default function AdminShopProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowReject(true)}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20"
                   >
                     <XCircle className="h-4 w-4" /> Reject
                   </button>
@@ -503,100 +513,62 @@ export default function AdminShopProductDetailPage() {
           </div>
         </div>
 
-        {/* Reject modal */}
-        {showReject && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={() => { if (!acting) { setShowReject(false); setRejectReason("") } }}
-          >
-            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="mb-4 flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                  <XCircle className="h-5 w-5" />
-                </span>
-                <div>
-                  <h2 className="text-lg font-semibold">Reject product</h2>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    The organizer sees this reason and can edit &amp; resubmit.
-                  </p>
-                </div>
-              </div>
-              <label htmlFor="reject-reason" className="mb-1.5 block text-sm font-medium">
-                Reason <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                id="reject-reason"
-                rows={4}
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="e.g. Product images are low quality, or the description is incomplete…"
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowReject(false); setRejectReason("") }}
-                  disabled={acting}
-                  className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={reject}
-                  disabled={acting || !rejectReason.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-4 py-2 text-sm text-destructive-foreground transition hover:opacity-90 disabled:opacity-50"
-                >
-                  {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                  Confirm rejection
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Reject dialog */}
+        <AlertDialog open={showReject} onOpenChange={(open) => { if (!open) { setShowReject(false); setRejectReason("") } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reject product</AlertDialogTitle>
+              <AlertDialogDescription>
+                The organizer sees this reason and can edit &amp; resubmit.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <label htmlFor="reject-reason" className="mb-1.5 mt-3 block text-sm font-medium text-foreground">
+              Reason <span className="text-destructive">*</span>
+            </label>
+            <textarea
+              id="reject-reason"
+              rows={4}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Product images are low quality, or the description is incomplete…"
+              className="w-full resize-none rounded-lg bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setShowReject(false); setRejectReason("") }}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={acting || !rejectReason.trim()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); reject() }}
+              >
+                {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm rejection"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        {/* Delete-permanently confirm modal */}
-        {showDeleteModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={() => { if (!deleting) setShowDeleteModal(false) }}
-          >
-            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                  <AlertTriangle className="h-5 w-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-semibold">Delete permanently?</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    <span className="font-semibold text-foreground">&ldquo;{product.title}&rdquo;</span> will be
-                    removed for good — this can&apos;t be undone. Blocked automatically if it has order history.
-                    The organizer will be notified.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteModal(false)}
-                  disabled={deleting}
-                  className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={deletePermanently}
-                  disabled={deleting}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-4 py-2 text-sm text-destructive-foreground transition hover:opacity-90 disabled:opacity-50"
-                >
-                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  Delete permanently
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Delete-permanently confirm dialog */}
+        <AlertDialog open={showDeleteModal} onOpenChange={(open) => { if (!open) setShowDeleteModal(false) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete permanently?</AlertDialogTitle>
+              <AlertDialogDescription>
+                <span className="font-semibold text-foreground">&ldquo;{product.title}&rdquo;</span> will be
+                removed for good — this can&apos;t be undone. Blocked automatically if it has order history.
+                The organizer will be notified.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowDeleteModal(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); deletePermanently() }}
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete permanently"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminLayout>
     </ProtectedRoute>
   )
@@ -604,7 +576,7 @@ export default function AdminShopProductDetailPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-2xl bg-card p-5 shadow-sm dark:ring-1 dark:ring-white/10">
       <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
       {children}
     </div>

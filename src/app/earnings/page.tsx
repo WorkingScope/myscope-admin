@@ -145,21 +145,26 @@ export default function AdminEarningsPage() {
       <AdminLayout user={user || undefined}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Earnings</h1>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Per-event end-to-end summary: customer revenue, convenience fees, platform fees,
-                refunds, comm billing, and payouts. Admin earnings = convenience fees + platform
-                fees + comm billing for the event.
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Coins className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Earnings</h1>
+                <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground">
+                  Per-event end-to-end summary: customer revenue, convenience fees, platform fees,
+                  refunds, comm billing, and payouts. Admin earnings = convenience fees + platform
+                  fees + comm billing for the event.
+                </p>
+              </div>
             </div>
             {rates ? (
-              <div className="rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs">
+              <div className="rounded-xl bg-card px-3 py-1.5 text-xs shadow-sm dark:ring-1 dark:ring-white/10">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Active rates
                 </div>
-                <div className="mt-0.5 font-mono">
+                <div className="mt-0.5 font-mono text-foreground">
                   Convenience {formatPct(rates.convenience_fee_pct)} · Platform{" "}
                   {formatPct(rates.platform_fee_pct)}
                 </div>
@@ -227,30 +232,32 @@ export default function AdminEarningsPage() {
           ) : null}
 
           {/* Search + status filter */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by event title…"
-                className="h-10 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+          <div className="rounded-2xl bg-card p-3 shadow-sm dark:ring-1 dark:ring-white/10">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative min-w-[200px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by event title…"
+                  className="h-10 w-full rounded-lg bg-muted pl-9 pr-3 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter by approval status"
+                className="h-10 rounded-lg bg-muted px-3 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="all">All approval statuses</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+                <option value="draft">Draft</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              aria-label="Filter by approval status"
-              className="h-10 rounded-md border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="all">All approval statuses</option>
-              <option value="approved">Approved</option>
-              <option value="pending">Pending</option>
-              <option value="rejected">Rejected</option>
-              <option value="draft">Draft</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
           </div>
 
           {/* Body */}
@@ -262,7 +269,7 @@ export default function AdminEarningsPage() {
               <span>{error}</span>
             </div>
           ) : visibleEvents.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card/40 p-10 text-center">
+            <div className="rounded-2xl bg-card p-10 text-center shadow-sm dark:ring-1 dark:ring-white/10">
               <Coins className="mx-auto h-10 w-10 text-muted-foreground" />
               <h3 className="mt-3 text-base font-semibold text-foreground">No events to show</h3>
               <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
@@ -287,14 +294,14 @@ function EventEarningsRow({ breakdown: b }: { breakdown: EventBreakdown }) {
   const dateLabel = formatDate(b.event.start_time)
 
   return (
-    <li className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <li className="overflow-hidden rounded-2xl bg-card shadow-sm dark:ring-1 dark:ring-white/10">
       {/* Header — always visible */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="flex w-full flex-wrap items-center gap-4 p-4 text-left hover:bg-muted/40"
       >
-        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
           {b.event.banner_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={b.event.banner_url} alt="" className="h-full w-full object-cover" />
@@ -305,7 +312,7 @@ function EventEarningsRow({ breakdown: b }: { breakdown: EventBreakdown }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate font-semibold text-foreground">{b.event.title}</span>
-            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
               {b.event.approval_status}
             </span>
           </div>
@@ -341,7 +348,7 @@ function EventEarningsRow({ breakdown: b }: { breakdown: EventBreakdown }) {
 
       {/* Expandable breakdown */}
       {open ? (
-        <div className="border-t border-border bg-muted/20 p-4">
+        <div className="border-t border-border/60 bg-muted/20 p-4">
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
             <Stat label="Gross revenue"        value={formatLkr(b.gross_revenue)} hint="Customer paid" />
             <Stat label="Organizer subtotal"   value={formatLkr(b.organizer_subtotal)} hint="Before fees" />
@@ -385,8 +392,8 @@ function TotalTile({
 }) {
   return (
     <div
-      className={`rounded-xl border bg-card p-4 shadow-sm ${
-        highlight ? "border-primary/40" : "border-border"
+      className={`rounded-2xl bg-card p-4 shadow-sm ${
+        highlight ? "ring-2 ring-primary/40" : "dark:ring-1 dark:ring-white/10"
       }`}
     >
       <div className="flex items-start justify-between gap-3">

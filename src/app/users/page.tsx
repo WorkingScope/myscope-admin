@@ -10,6 +10,17 @@ import { PageLoader } from "@/components/ui/loading"
 import { ErrorMessage, EmptyState } from "@/components/ui/error-message"
 import { adminAPI } from "@/lib/apiEndpoints"
 import toast from "react-hot-toast"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Users,
   Search,
@@ -19,7 +30,6 @@ import {
   Ban,
   CheckCircle2,
   XCircle,
-  Filter,
   Mail,
 } from "lucide-react"
 
@@ -47,6 +57,11 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [banTarget, setBanTarget] = useState<User | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
+  const [forceDeleteTarget, setForceDeleteTarget] = useState<{ user: User; message: string } | null>(null)
+  const [promoteTarget, setPromoteTarget] = useState<User | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -67,14 +82,14 @@ export default function UsersPage() {
     }
   }
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
-      return
-    }
-
+  const confirmDeleteUser = async () => {
+    if (!deleteTarget) return
+    const userId = deleteTarget.id
+    setActionBusy(true)
     try {
       await adminAPI.deleteUser(userId)
       toast.success("User deleted successfully")
+      setDeleteTarget(null)
       fetchUsers()
     } catch (err: any) {
       // FK violation → user has linked records (payouts / shop_orders /
@@ -84,36 +99,44 @@ export default function UsersPage() {
       const code = err?.response?.data?.data?.code
       const message = err?.response?.data?.message || "Failed to delete user"
       if (status === 409 && code === "FK_VIOLATION") {
-        const proceed = window.confirm(
-          `${message}\n\n` +
-          `Force-delete will WIPE the linked records (payouts, shop orders, scanner sessions, events) ` +
-          `before deleting the user. This is destructive and irreversible. Proceed?`,
-        )
-        if (!proceed) return
-        try {
-          await adminAPI.deleteUser(userId, { force: true })
-          toast.success("User force-deleted (linked records wiped)")
-          fetchUsers()
-        } catch (forceErr: any) {
-          toast.error(forceErr?.response?.data?.message || "Force delete failed")
-        }
-        return
+        setDeleteTarget(null)
+        setForceDeleteTarget({ user: deleteTarget, message })
+      } else {
+        toast.error(message)
+        setDeleteTarget(null)
       }
-      toast.error(message)
+    } finally {
+      setActionBusy(false)
     }
   }
 
-  const handleBanUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to ban this user?")) {
-      return
-    }
-    
+  const confirmForceDelete = async () => {
+    if (!forceDeleteTarget) return
+    setActionBusy(true)
     try {
-      await adminAPI.banUser(userId)
+      await adminAPI.deleteUser(forceDeleteTarget.user.id, { force: true })
+      toast.success("User force-deleted (linked records wiped)")
+      fetchUsers()
+    } catch (forceErr: any) {
+      toast.error(forceErr?.response?.data?.message || "Force delete failed")
+    } finally {
+      setActionBusy(false)
+      setForceDeleteTarget(null)
+    }
+  }
+
+  const confirmBanUser = async () => {
+    if (!banTarget) return
+    setActionBusy(true)
+    try {
+      await adminAPI.banUser(banTarget.id)
       toast.success("User banned successfully")
       fetchUsers()
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to ban user")
+    } finally {
+      setActionBusy(false)
+      setBanTarget(null)
     }
   }
 
@@ -127,17 +150,18 @@ export default function UsersPage() {
     }
   }
 
-  const handlePromoteToModerator = async (userId: string) => {
-    if (!confirm("Promote this user to Content Manager role?")) {
-      return
-    }
-    
+  const confirmPromoteToModerator = async () => {
+    if (!promoteTarget) return
+    setActionBusy(true)
     try {
-      await adminAPI.updateUser(userId, { role: "content-manager" })
+      await adminAPI.updateUser(promoteTarget.id, { role: "content-manager" })
       toast.success("User promoted to Content Manager")
       fetchUsers()
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to promote user")
+    } finally {
+      setActionBusy(false)
+      setPromoteTarget(null)
     }
   }
 
@@ -183,19 +207,23 @@ export default function UsersPage() {
       <AdminLayout user={currentUser || undefined}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <Users className="h-8 w-8 text-primary" />
-                User Management
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Manage user accounts, roles, and permissions
-              </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                  Users
+                </h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Manage user accounts, roles, and permissions
+                </p>
+              </div>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:opacity-90 transition"
+              className="inline-flex shrink-0 items-center rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               <Plus className="mr-2 h-4 w-4" />
               Add User
@@ -203,7 +231,7 @@ export default function UsersPage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
             <StatCard title="Total Users" value={stats.total} tone="primary" />
             <StatCard title="Organizers" value={stats.organizers} tone="accent" />
             <StatCard title="Moderators" value={stats.moderators} tone="warning" />
@@ -213,36 +241,33 @@ export default function UsersPage() {
           </div>
 
           {/* Filters and Search */}
-          <div className="bg-card border border-border rounded-lg p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="rounded-2xl bg-card p-4 shadow-sm dark:ring-1 dark:ring-white/10">
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Search by name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-lg bg-muted py-2 pl-10 pr-4 text-foreground placeholder-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="all">All Roles</option>
-                  <option value="user">Users</option>
-                  <option value="organizer">Organizers</option>
-                  <option value="scanner">Scanners</option>
-                  <option value="moderator">Moderators</option>
-                  <option value="support">Support</option>
-                  <option value="content-manager">Content Manager</option>
-                  <option value="event-manager">Event Manager</option>
-                  <option value="superadmin">Super Admin</option>
-                </select>
-              </div>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="all">All Roles</option>
+                <option value="user">Users</option>
+                <option value="organizer">Organizers</option>
+                <option value="scanner">Scanners</option>
+                <option value="moderator">Moderators</option>
+                <option value="support">Support</option>
+                <option value="content-manager">Content Manager</option>
+                <option value="event-manager">Event Manager</option>
+                <option value="superadmin">Super Admin</option>
+              </select>
             </div>
           </div>
 
@@ -267,138 +292,221 @@ export default function UsersPage() {
               action={
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+                  className="rounded-lg bg-primary px-4 py-2 text-primary-foreground transition hover:bg-primary/90"
                 >
                   Add User
                 </button>
               }
             />
           ) : (
-            <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/50 border-b border-border">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Joined
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-primary/10">
-                              {user.profile_image ? (
-                                <Image
-                                  src={user.profile_image}
-                                  alt={user.name}
-                                  width={40}
-                                  height={40}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-primary text-primary-foreground font-semibold text-sm">
-                                  {user.name.charAt(0).toUpperCase()}
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium text-foreground">
-                                {user.name}
-                              </div>
-                              <div className="flex items-center gap-1 truncate text-sm text-muted-foreground">
-                                <Mail className="h-3 w-3 shrink-0" />
-                                <span className="truncate">{user.email}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full capitalize ${roleBadgeClass(user.role)}`}>
-                            {user.role.replace('-', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {user.status === 'banned' ? (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-destructive/10 text-destructive">
-                              <XCircle className="mr-1 h-3 w-3" />
-                              Banned
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                              <CheckCircle2 className="mr-1 h-3 w-3" />
-                              Active
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                          {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => handleViewUser(user)}
-                              className="p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition"
-                              title="View details"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            {user.role === 'user' && (
-                              <button
-                                onClick={() => handlePromoteToModerator(user.id)}
-                                className="p-2 text-primary hover:bg-primary/10 rounded-md transition"
-                                title="Promote to Content Manager"
-                              >
-                                <CheckCircle2 className="h-4 w-4" />
-                              </button>
-                            )}
-                            {user.status === 'banned' ? (
-                              <button
-                                onClick={() => handleUnbanUser(user.id)}
-                                className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition"
-                                title="Unban user"
-                              >
-                                <CheckCircle2 className="h-4 w-4" />
-                              </button>
+            <div className="rounded-2xl bg-card shadow-sm dark:ring-1 dark:ring-white/10">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-primary/10">
+                            {user.profile_image ? (
+                              <Image
+                                src={user.profile_image}
+                                alt={user.name}
+                                width={36}
+                                height={36}
+                                className="h-full w-full object-cover"
+                              />
                             ) : (
-                              <button
-                                onClick={() => handleBanUser(user.id)}
-                                className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 rounded-md transition"
-                                title="Ban user"
-                              >
-                                <Ban className="h-4 w-4" />
-                              </button>
+                              <div className="flex h-full w-full items-center justify-center bg-primary text-sm font-semibold text-primary-foreground">
+                                {user.name.charAt(0).toUpperCase()}
+                              </div>
                             )}
-                            <button
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="p-2 text-destructive hover:bg-destructive/10 rounded-md transition"
-                              title="Delete user"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-foreground">
+                              {user.name}
+                            </div>
+                            <div className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{user.email}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${roleBadgeClass(user.role)}`}>
+                          {user.role.replace('-', ' ')}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {user.status === 'banned' ? (
+                          <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
+                            <XCircle className="mr-1 h-3 w-3" />
+                            Banned
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                            Active
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleViewUser(user)}
+                            className="rounded-md p-2 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+                            title="View details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          {user.role === 'user' && (
+                            <button
+                              onClick={() => setPromoteTarget(user)}
+                              className="rounded-md p-2 text-primary transition hover:bg-primary/10"
+                              title="Promote to Content Manager"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          {user.status === 'banned' ? (
+                            <button
+                              onClick={() => handleUnbanUser(user.id)}
+                              className="rounded-md p-2 text-emerald-600 transition hover:bg-emerald-500/10 dark:text-emerald-400"
+                              title="Unban user"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setBanTarget(user)}
+                              className="rounded-md p-2 text-amber-600 transition hover:bg-amber-500/10 dark:text-amber-400"
+                              title="Ban user"
+                            >
+                              <Ban className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setDeleteTarget(user)}
+                            className="rounded-md p-2 text-destructive transition hover:bg-destructive/10"
+                            title="Delete user"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
+
+          <AlertDialog open={banTarget !== null} onOpenChange={(open) => { if (!open) setBanTarget(null) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Ban this user?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {banTarget && (
+                    <>
+                      <span className="font-medium text-foreground">{banTarget.name}</span> won&rsquo;t be able to sign in until unbanned.
+                    </>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setBanTarget(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={actionBusy}
+                  onClick={(e) => { e.preventDefault(); confirmBanUser() }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  <Ban className="h-4 w-4" /> Ban user
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={promoteTarget !== null} onOpenChange={(open) => { if (!open) setPromoteTarget(null) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Promote to Content Manager?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {promoteTarget && (
+                    <>
+                      <span className="font-medium text-foreground">{promoteTarget.name}</span> will gain Content Manager permissions.
+                    </>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setPromoteTarget(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction disabled={actionBusy} onClick={(e) => { e.preventDefault(); confirmPromoteToModerator() }}>
+                  <CheckCircle2 className="h-4 w-4" /> Promote
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this user?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {deleteTarget && (
+                    <>
+                      This permanently deletes <span className="font-medium text-foreground">{deleteTarget.name}</span>. This can&rsquo;t be undone.
+                    </>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={actionBusy}
+                  onClick={(e) => { e.preventDefault(); confirmDeleteUser() }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  <Trash2 className="h-4 w-4" /> Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Force-delete escape hatch — shown only when the normal delete
+              hit a foreign-key violation (user has linked payouts/orders/
+              events/scanner sessions). */}
+          <AlertDialog open={forceDeleteTarget !== null} onOpenChange={(open) => { if (!open) setForceDeleteTarget(null) }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Can&rsquo;t delete — force instead?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {forceDeleteTarget?.message} Force-delete will <span className="font-medium text-foreground">wipe the linked records</span> (payouts, shop orders, scanner sessions, events) before deleting the user. This is destructive and irreversible.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setForceDeleteTarget(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={actionBusy}
+                  onClick={(e) => { e.preventDefault(); confirmForceDelete() }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  <Trash2 className="h-4 w-4" /> Force delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Pagination */}
           {filteredUsers.length > 0 && (
@@ -452,15 +560,15 @@ const TONE_CLASSES: Record<Tone, { bg: string; text: string }> = {
 function StatCard({ title, value, tone = "primary" }: { title: string; value: number; tone?: Tone }) {
   const t = TONE_CLASSES[tone]
   return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold text-foreground mt-1">{value}</p>
+    <div className="rounded-2xl bg-card p-5 shadow-sm transition-shadow hover:shadow-md dark:ring-1 dark:ring-white/10">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
+          <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{value}</p>
         </div>
-        <div className={`h-12 w-12 rounded-md flex items-center justify-center ${t.bg}`}>
-          <Users className={`h-6 w-6 ${t.text}`} />
-        </div>
+        <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${t.bg}`}>
+          <Users className={`h-4 w-4 ${t.text}`} />
+        </span>
       </div>
     </div>
   )
@@ -497,8 +605,8 @@ function CreateUserModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-lg max-w-md w-full p-6">
-        <h2 className="text-2xl font-bold text-foreground mb-4">Create New User</h2>
+      <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-lg dark:ring-1 dark:ring-white/10">
+        <h2 className="mb-4 text-2xl font-bold text-foreground">Create New User</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -509,7 +617,7 @@ function CreateUserModal({
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
               required
             />
           </div>
@@ -522,7 +630,7 @@ function CreateUserModal({
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
               required
             />
           </div>
@@ -534,7 +642,7 @@ function CreateUserModal({
             <select
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="user">User</option>
               <option value="organizer">Organizer</option>
@@ -555,7 +663,7 @@ function CreateUserModal({
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-lg bg-muted px-4 py-2 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
               required
               minLength={6}
             />
@@ -565,14 +673,14 @@ function CreateUserModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-muted text-foreground rounded-lg hover:opacity-90 transition"
+              className="flex-1 rounded-lg bg-muted px-4 py-2 text-foreground transition hover:bg-muted/70"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition disabled:opacity-50"
+              className="flex-1 rounded-lg bg-primary px-4 py-2 text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? "Saving..." : "Create"}
             </button>
