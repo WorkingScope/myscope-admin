@@ -164,9 +164,11 @@ export const adminAPI = {
   uploadHeroSlideImage: (file: File) => {
     const fd = new FormData()
     fd.append('image', file)
-    return api.post('/hero-slides/admin/upload-image', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    // No explicit Content-Type: the browser must generate its own
+    // multipart boundary to match how it encoded `fd`. Setting the header
+    // by hand (as this used to) strips that boundary and can cause the
+    // server to receive a malformed body the browser then aborts mid-send.
+    return api.post('/hero-slides/admin/upload-image', fd)
   },
 
   // Past events — admin-curated image strip shown on the home page under

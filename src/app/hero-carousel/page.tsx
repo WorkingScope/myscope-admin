@@ -644,11 +644,12 @@ function SlideEditor({
                 <div className="relative aspect-[21/9] overflow-hidden rounded-md bg-muted">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={form.image_url} alt="Slide preview" className="h-full w-full object-cover" />
-                  <label className="absolute bottom-2 right-2 cursor-pointer">
+                  <label className={`absolute bottom-2 right-2 ${uploading ? "pointer-events-none cursor-default" : "cursor-pointer"}`}>
                     <input
                       type="file"
                       accept="image/*"
                       className="hidden"
+                      disabled={uploading}
                       onChange={(e) => {
                         const f = e.target.files?.[0]
                         if (f) onUpload(f)
@@ -662,11 +663,12 @@ function SlideEditor({
                   </label>
                 </div>
               ) : (
-                <label className="flex aspect-[21/9] cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/40 transition-colors hover:border-primary/40 hover:bg-primary/5">
+                <label className={`flex aspect-[21/9] items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/40 transition-colors ${uploading ? "cursor-default" : "cursor-pointer hover:border-primary/40 hover:bg-primary/5"}`}>
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    disabled={uploading}
                     onChange={(e) => {
                       const f = e.target.files?.[0]
                       if (f) onUpload(f)
