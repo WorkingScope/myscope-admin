@@ -164,11 +164,14 @@ export const adminAPI = {
   uploadHeroSlideImage: (file: File) => {
     const fd = new FormData()
     fd.append('image', file)
-    // No explicit Content-Type: the browser must generate its own
-    // multipart boundary to match how it encoded `fd`. Setting the header
-    // by hand (as this used to) strips that boundary and can cause the
-    // server to receive a malformed body the browser then aborts mid-send.
-    return api.post('/hero-slides/admin/upload-image', fd)
+    // The explicit header is required here: this axios instance defaults to
+    // 'application/json', and without overriding it per-call, axios's own
+    // transformRequest JSON-stringifies the FormData before the browser ever
+    // sees it (destroying the file). The browser still replaces this header
+    // with the correct multipart boundary once it sees the FormData body.
+    return api.post('/hero-slides/admin/upload-image', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
   },
 
   // Past events — admin-curated image strip shown on the home page under
